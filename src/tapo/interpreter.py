@@ -857,11 +857,16 @@ class Interpreter:
     # ------------------------------------------------------------------
     def std_dir(self):
         here = os.path.dirname(os.path.abspath(__file__))
-        candidates = [
+        candidates = []
+        if getattr(sys, "frozen", False):
+            bundle = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+            candidates.append(os.path.join(bundle, "std"))
+        candidates.extend([
+            os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "std"),
             os.path.join(os.path.dirname(os.path.dirname(here)), "std"),
             os.path.join(here, "stdlib"),
             os.path.join(sys.prefix, "share", "tapo", "std"),
-        ]
+        ])
         for candidate in candidates:
             if os.path.isdir(candidate):
                 return candidate
