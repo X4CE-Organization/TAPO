@@ -1,0 +1,66 @@
+import "std/test.takg" as T
+import "math"
+import "json"
+import "regex"
+import "time"
+import "random"
+import "sys"
+import "fs"
+
+test("math", fn() {
+  assert_eq(math.floor(3.7), 3)
+  assert_eq(math.ceil(3.1), 4)
+  T.assert_close(math.sqrt(2), 1.41421356237, 0.0001)
+  assert_eq(math.hypot(3, 4), 5)
+  assert(math.is_nan(math.NAN))
+})
+
+test("regex", fn() {
+  assert(regex.test?("a+", "baa"))
+  assert(not regex.test?("^a+$", "baa"))
+  let m = regex.match("(a+)(b)", "xaab")
+  assert_eq(m.match, "aab")
+  assert_eq(m.groups, ["aa", "b"])
+  assert_eq(regex.find_all("a+", "a b aa"), ["a", "aa"])
+  assert_eq(regex.replace("a+", "baa", "X"), "bX")
+  assert_eq(regex.split(",+", "a,b,,c"), ["a", "b", "c"])
+})
+
+test("time", fn() {
+  assert(time.now() > 0)
+  assert_eq(time.format(0, "%Y"), "1970")
+  assert(time.iso(0).starts_with("1970"))
+})
+
+test("random", fn() {
+  random.seed(42)
+  let first = random.int(1, 10)
+  random.seed(42)
+  let second = random.int(1, 10)
+  assert_eq(first, second)
+  let xs = [1, 2, 3, 4, 5]
+  let chosen = random.choice(xs)
+  assert(xs.contains(chosen))
+})
+
+test("sys", fn() {
+  assert(sys.version.starts_with("0.0"))
+  assert(sys.argv.is_a?(List))
+  assert(sys.pid > 0)
+  assert_eq(sys.env("TAPO_TEST_MISSING", "fallback"), "fallback")
+})
+
+test("filesystem", fn() {
+  let path = "/tmp/tapo_stdlib_#{sys.pid}.txt"
+  fs.write(path, "alpha\nbeta\n")
+  assert(fs.exists?(path))
+  assert_eq(fs.read(path), "alpha\nbeta\n")
+  assert_eq(fs.read_lines(path), ["alpha", "beta"])
+  fs.append(path, "gamma\n")
+  assert_eq(fs.read_lines(path), ["alpha", "beta", "gamma"])
+  assert(fs.is_file?(path))
+  assert(not fs.is_dir?(path))
+  assert(fs.size(path) > 0)
+  fs.remove(path)
+  assert(not fs.exists?(path))
+})

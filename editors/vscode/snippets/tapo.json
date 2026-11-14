@@ -1,0 +1,122 @@
+{
+  "Class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:Name}${2: < ${3:Super}} {",
+      "\tvar ${4:field} = ${5:0}",
+      "",
+      "\tinit(${6:args}) {",
+      "\t\t${7:self.field = args}",
+      "\t}",
+      "",
+      "\tfn ${8:method}(${9:args}) => ${10:value}",
+      "}"
+    ],
+    "description": "Declare a TAPO class"
+  },
+  "Mixin": {
+    "prefix": "mixin",
+    "body": [
+      "mixin ${1:Name} {",
+      "\tfn ${2:method}(${3:args}) => ${4:value}",
+      "}"
+    ],
+    "description": "Declare a mixin"
+  },
+  "Aspect": {
+    "prefix": "aspect",
+    "body": [
+      "aspect ${1:Name} {",
+      "\tbefore ${2:*} (self, method, args) {",
+      "\t\t${3:println(method)}",
+      "\t}",
+      "\tafter ${2:*} (self, method, args, result) {",
+      "\t\t${4:}",
+      "\t}",
+      "}"
+    ],
+    "description": "Declare an aspect with before/after advice"
+  },
+  "Around advice": {
+    "prefix": "around",
+    "body": [
+      "around ${1:method} (self, method, args, proceed) {",
+      "\tlet result = proceed(args)",
+      "\t${2:result}",
+      "}"
+    ],
+    "description": "Around advice with proceed"
+  },
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:args}) {",
+      "\t${3:}",
+      "}"
+    ],
+    "description": "Named function"
+  },
+  "Lambda": {
+    "prefix": "lam",
+    "body": "fn(${1:x}) => ${2:x}",
+    "description": "Lambda expression"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value} {",
+      "\t${2:pattern} => ${3:result}",
+      "\telse => ${4:fallback}",
+      "}"
+    ],
+    "description": "Pattern match"
+  },
+  "If expression": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition} {",
+      "\t${2:}",
+      "} else {",
+      "\t${3:}",
+      "}"
+    ],
+    "description": "If expression"
+  },
+  "For loop": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:iterable} {",
+      "\t${3:}",
+      "}"
+    ],
+    "description": "For loop"
+  },
+  "Try": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t${1:}",
+      "} catch ${2:err} {",
+      "\t${3:println(err.message)}",
+      "}"
+    ],
+    "description": "Try/catch"
+  },
+  "Test": {
+    "prefix": "test",
+    "body": [
+      "test(\"${1:name}\", fn() {",
+      "\t${2:assert_eq(1, 1)}",
+      "})"
+    ],
+    "description": "Test case"
+  },
+  "Pipeline": {
+    "prefix": "pipe",
+    "body": [
+      "${1:value}",
+      "\t|> _.${2:method}(${3:args})"
+    ],
+    "description": "Pipeline with placeholder"
+  }
+}

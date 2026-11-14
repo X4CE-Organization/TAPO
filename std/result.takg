@@ -1,0 +1,110 @@
+# result: explicit success/failure values.
+# Import with:  import "std/result.takg" as R
+
+class Result {
+  var ok = true
+  var value = nil
+  var error = nil
+
+  init(ok, value, error) {
+    self.ok = ok
+    self.value = value
+    self.error = error
+  }
+
+  fn ok?() => self.ok
+  fn err?() => not self.ok
+
+  fn unwrap(message = "called unwrap on an Err") {
+    if not self.ok { raise self.error }
+    self.value
+  }
+
+  fn unwrap_err(message = "called unwrap_err on an Ok") {
+    if self.ok { raise ValueError(message) }
+    self.error
+  }
+
+  fn unwrap_or(default) {
+    if self.ok { self.value } else { default }
+  }
+
+  fn unwrap_or_else(f) {
+    if self.ok { self.value } else { f(self.error) }
+  }
+
+  fn map(f) {
+    if self.ok { Ok(f(self.value)) } else { self }
+  }
+
+  fn map_err(f) {
+    if self.ok { self } else { Err(f(self.error)) }
+  }
+
+  fn and_then(f) {
+    if self.ok { f(self.value) } else { self }
+  }
+
+  fn or_else(f) {
+    if self.ok { self } else { f(self.error) }
+  }
+
+  fn to_s() {
+    if self.ok { "Ok(#{inspect(self.value)})" } else { "Err(#{inspect(self.error)})" }
+  }
+}
+
+class Ok < Result {
+  init(value) { super.init(true, value, nil) }
+}
+
+class Err < Result {
+  init(error) { super.init(false, nil, error) }
+}
+
+fn ok(value) => Ok(value)
+fn err(error) => Err(error)
+
+fn try_result(f) {
+  try {
+    Ok(f())
+  } catch caught {
+    Err(caught)
+  }
+}
+
+fn collect_results(results) {
+  let values = []
+  for result in results {
+    if result.err? { return result }
+    values.push(result.unwrap())
+  }
+  Ok(values)
+}
+
+fn partition_results(results) {
+  let oks = []
+  let errs = []
+  for result in results {
+    if result.ok? { oks.push(result.unwrap()) } else { errs.push(result.error) }
+  }
+  [oks, errs]
+}
+
+fn all_ok?(results) {
+  for result in results {
+    if result.err? { return false }
+  }
+  true
+}
+
+fn any_ok?(results) {
+  for result in results {
+    if result.ok? { return true }
+  }
+  false
+}
+
+fn from_option(option, message = "expected Some") {
+  if option.some? { Ok(option.unwrap()) } else { Err(ValueError(message)) }
+}

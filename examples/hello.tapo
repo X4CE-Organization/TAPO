@@ -1,0 +1,8 @@
+# The classic. Run with: ./tapo examples/hello.tapo
+println("Hello, TAPO!")
+
+let name = "world"
+println("hello, #{name}")
+
+let squares = [1, 2, 3, 4] |> _.map(fn(n) => n * n)
+println("squares: #{squares}")

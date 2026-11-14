@@ -1,0 +1,31 @@
+# Pattern matching: literals, lists, maps, classes, guards and bindings.
+
+class Point {
+  var x = 0, y = 0
+  init(x, y) { self.x = x; self.y = y }
+}
+
+fn describe(value) {
+  match value {
+    0 => "zero"
+    n if n is Int and n < 0 => "negative: #{n}"
+    [first, ...rest] => "list starting with #{first}, rest #{rest}"
+    {kind: "ok", value: v} => "ok with #{v}"
+    Point(x: 0, y) => "on the y axis at #{y}"
+    Point(x, y) => "point (#{x}, #{y})"
+    "yes" | "no" => "boolean-ish"
+    else => "something else"
+  }
+}
+
+println(describe(0))
+println(describe(-7))
+println(describe([1, 2, 3]))
+println(describe({kind: "ok", value: 42}))
+println(describe(Point(0, 5)))
+println(describe(Point(3, 4)))
+println(describe("yes"))
+
+let pair = [10, 20]
+let [a, b] = pair
+println("destructured: #{a} + #{b} = #{a + b}")

@@ -1,0 +1,60 @@
+# validation: small predicates and guard helpers.
+# Import with:  import "std/validation.takg" as V
+
+import "regex" as regex
+
+fn is_email(text) => regex.test?("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$", text)
+
+fn is_url(text) => regex.test?("^https?://[^\\s]+$", text)
+
+fn is_uuid(text) => regex.test?("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", text)
+
+fn is_hex_color(text) => regex.test?("^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$", text)
+
+fn is_slug(text) => regex.test?("^[a-z0-9]+(-[a-z0-9]+)*$", text)
+
+fn is_numeric(text) => regex.test?("^[+-]?(\\d+(\\.\\d*)?|\\.\\d+)$", text)
+
+fn is_integer_string(text) => regex.test?("^[+-]?\\d+$", text)
+
+fn is_alpha(text) => regex.test?("^[^\\W\\d_]+$", text)
+
+fn is_alnum(text) => regex.test?("^[^\\W_]+$", text)
+
+fn is_ipv4(text) {
+  if not regex.test?("^(\\d{1,3}\\.){3}\\d{1,3}$", text) { return false }
+  for part in text.split(".") {
+    if Int(part) > 255 { return false }
+  }
+  true
+}
+
+fn require(condition, message = "requirement failed") {
+  if not condition { raise ArgumentError(message) }
+  condition
+}
+
+fn ensure(value, predicate, message = "value is invalid") {
+  if not predicate(value) { raise ValueError(message) }
+  value
+}
+
+fn one_of(value, options, message = "value is not allowed") {
+  if not options.contains(value) { raise ValueError(message) }
+  value
+}
+
+fn in_range(value, low, high, inclusive = true) {
+  if inclusive { return value >= low and value <= high }
+  value > low and value < high
+}
+
+# checks is a list of maps: {"test": fn, "message": "..."}.
+fn validate(value, checks) {
+  for check in checks {
+    if not check["test"](value) {
+      raise ValueError(check["message"] or "validation failed")
+    }
+  }
+  value
+}

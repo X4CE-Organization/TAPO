@@ -1,0 +1,110 @@
+import "std/test.takg" as T
+
+class Point {
+  var x = 0, y = 0
+  init(x, y) { self.x = x; self.y = y }
+}
+
+class Circle {
+  var center = nil, radius = 0
+  init(center, radius) { self.center = center; self.radius = radius }
+}
+
+test("literal and wildcard patterns", fn() {
+  let a = match 1 {
+    1 => "one"
+    _ => "other"
+  }
+  assert_eq(a, "one")
+  let b = match nil {
+    nil => "nil"
+    else => "other"
+  }
+  assert_eq(b, "nil")
+})
+
+test("list patterns", fn() {
+  let result = match [1, 2, 3, 4] {
+    [first, ...rest] => [first, rest]
+    else => nil
+  }
+  assert_eq(result, [1, [2, 3, 4]])
+  let nested = match [1, [2, 3]] {
+    [1, [a, b]] => a + b
+    else => 0
+  }
+  assert_eq(nested, 5)
+})
+
+test("map patterns", fn() {
+  let result = match {kind: "ok", value: 42} {
+    {kind: "ok", value: v} => v
+    else => nil
+  }
+  assert_eq(result, 42)
+  let rest = match {a: 1, b: 2, c: 3} {
+    {a: 1, ...others} => others
+    else => nil
+  }
+  assert_eq(rest, {"b": 2, "c": 3})
+})
+
+test("class patterns", fn() {
+  let p = Point(3, 4)
+  let name = match p {
+    Point(x: 0, y: 0) => "origin"
+    Point(x: 3, y) => "x=3 y=#{y}"
+    else => "other"
+  }
+  assert_eq(name, "x=3 y=4")
+  let magnitude = match p {
+    Point(a, b) => a + b
+    else => 0
+  }
+  assert_eq(magnitude, 7)
+})
+
+test("guards and or patterns", fn() {
+  let classify = fn(n) {
+    match n {
+      0 => "zero"
+      x if x < 0 => "negative"
+      x if x > 100 => "large"
+      else => "small"
+    }
+  }
+  assert_eq(classify(0), "zero")
+  assert_eq(classify(-3), "negative")
+  assert_eq(classify(200), "large")
+  assert_eq(classify(3), "small")
+  let letter = match "b" {
+    "a" | "b" | "c" => "early"
+    else => "late"
+  }
+  assert_eq(letter, "early")
+})
+
+test("as patterns and destructuring", fn() {
+  let value = match [1, 2] {
+    pair as whole => whole
+  }
+  assert_eq(value, [1, 2])
+  let [a, b] = [10, 20]
+  assert_eq(a + b, 30)
+  let Point(px, py) = Point(5, 6)
+  assert_eq(px + py, 11)
+})
+
+test("non-matching raises MatchError", fn() {
+  assert_raises(MatchError, fn() {
+    match 3 {
+      1 => "one"
+    }
+  })
+})
+
+test("object pattern and comma arms", fn() {
+  let x = Point(1, 2)
+  assert_eq(match x { Object() => "any", else => "no" }, "any")
+  assert_eq(match 2 { 1 => "a", 2 => "b" }, "b")
+})

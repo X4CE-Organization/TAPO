@@ -1,0 +1,10 @@
+# Modules can expose values, functions, classes and mixins.
+import "std/option.takg" as Option
+import "math"
+
+println("sqrt(2) = #{sqrt(2)}")
+println("pi = #{PI}")
+
+let value = Option.Some(21).map(fn(x) => x * 2)
+println("option: #{value.unwrap()}")
+println("empty: #{Option.None().unwrap_or(0)}")

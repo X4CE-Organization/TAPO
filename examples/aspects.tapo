@@ -1,0 +1,32 @@
+# AOP: before/after advice for side effects, around for transformation.
+
+aspect Logging {
+  before * (self, method, args) {
+    println("  -> #{method}(#{args.join(", ")})")
+  }
+  after * (self, method, args, result) {
+    println("  <- #{method} = #{result}")
+  }
+}
+
+aspect Cached {
+  around slow (self, method, args, proceed) {
+    println("  (cache miss, computing)")
+    proceed(args) * 2
+  }
+}
+
+class Calculator {
+  use Logging
+
+  fn add(a, b) => a + b
+  fn slow(n) => n + 1
+}
+
+let calc = Calculator()
+println("add result: #{calc.add(2, 3)}")
+
+Calculator.apply(Cached)
+println("slow result: #{calc.slow(10)}")
+
+println("aspects on Calculator: #{Calculator.aspects}")

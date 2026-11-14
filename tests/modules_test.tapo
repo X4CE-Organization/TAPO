@@ -1,0 +1,59 @@
+import "std/test.takg" as T
+import "./fixtures/functional.takg" as FunctionalFixture
+import "std/collections.takg" as C
+import "std/option.takg" as O
+import "math"
+import "json"
+
+test("aliased imports", fn() {
+  assert_eq(C.chunk([1, 2, 3], 2), [[1, 2], [3]])
+  assert_eq(math.sqrt(16), 4)
+  assert(math.PI > 3)
+})
+
+test("imported modules expose metadata", fn() {
+  assert_eq(C.name, "collections")
+  assert(C.keys().contains("chunk"))
+  assert(C.responds_to?("chunk"))
+})
+
+test("option type", fn() {
+  let s = O.some(5)
+  let n = O.none()
+  assert(s.some?)
+  assert(n.none?)
+  assert_eq(s.unwrap(), 5)
+  assert_eq(n.unwrap_or(9), 9)
+  assert_eq(s.map(fn(x) => x * 2).unwrap(), 10)
+  assert_raises(ValueError, fn() { n.unwrap() })
+})
+
+test("json round trip", fn() {
+  let text = json.stringify({name: "TAPO", values: [1, 2, 3], ok: true})
+  let data = json.parse(text)
+  assert_eq(data.name, "TAPO")
+  assert_eq(data.values, [1, 2, 3])
+  assert_eq(data.ok, true)
+})
+
+test("unaliased import", fn() {
+  import "std/collections.takg"
+  assert_eq(chunk([1, 2], 1), [[1], [2]])
+})
+
+test("exports and private names", fn() {
+  import "./fixtures/shapes.takg" as Shapes
+  assert_eq(Shapes.area(3, 4), 12)
+  assert_eq(Shapes.Square(3).area(), 9)
+  assert_eq(Shapes._secret, "s")
+  assert(Shapes.keys().contains("hidden"))
+})
+
+test("comma separated match arms", fn() {
+  let value = match 2 { 1 => "one", 2 => "two", else => "other" }
+  assert_eq(value, "two")
+})
+
+test("module with the same name does not import itself", fn() {
+  assert_eq(FunctionalFixture.identity_value, 7)
+})

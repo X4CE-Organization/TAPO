@@ -1,0 +1,9 @@
+let _secret = "s"
+export _secret
+let hidden = "not exported"
+fn area(w, h) => w * h
+class Square {
+  var side = 0
+  init(side) { self.side = side }
+  fn area() => side * side
+}

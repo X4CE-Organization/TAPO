@@ -1,0 +1,63 @@
+# io: JSON/JSONL and filesystem conveniences.
+# Import with:  import "std/io.takg" as IO
+
+import "json" as json
+import "fs" as fs
+
+fn read_text(path) => fs.read(path)
+
+fn write_text(path, text) {
+  fs.write(path, text)
+  text
+}
+
+fn append_text(path, text) {
+  fs.append(path, text)
+  text
+}
+
+fn read_json(path) => json.parse(fs.read(path))
+
+fn write_json(path, value, pretty = true) {
+  fs.write(path, json.stringify(value, pretty))
+  value
+}
+
+fn read_jsonl(path) {
+  let out = []
+  for line in fs.read_lines(path) {
+    if not line.trim().empty? { out.push(json.parse(line)) }
+  }
+  out
+}
+
+fn append_jsonl(path, value) {
+  fs.append(path, json.stringify(value) + "\n")
+  value
+}
+
+fn ensure_dir(path) {
+  if not fs.exists?(path) { fs.mkdir(path, true) }
+  path
+}
+
+fn walk(dir) {
+  let out = []
+  for name in fs.list(dir) {
+    let path = fs.join(dir, name)
+    out.push(path)
+    if fs.is_dir?(path) {
+      for child in walk(path) { out.push(child) }
+    }
+  }
+  out
+}
+
+fn copy_text(source, target) {
+  fs.write(target, fs.read(source))
+  target
+}
+
+fn file_size(path) => fs.size(path)
+
+fn exists?(path) => fs.exists?(path)

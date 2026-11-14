@@ -1,0 +1,49 @@
+# Independent helper libraries in one small program: clean names, group
+# people, and validate results.
+import "std/strings.takg" as S
+import "std/collections.takg" as C
+import "std/result.takg" as R
+import "std/validation.takg" as V
+
+let people = [
+  {name: "ada lovelace", age: 36},
+  {name: "Grace Hopper", age: 85},
+  {name: "alan_turing", age: 41},
+  {name: "Edsger W. Dijkstra", age: 72},
+]
+
+let display_names = people.map(fn(person) {
+  S.titleize(person["name"])
+})
+
+println("People: " + display_names.join(", "))
+println("Slugs:  " + people.map(fn(p) => S.slugify(p["name"])).join(" "))
+
+let groups = C.group_by(people, fn(person) {
+  if person["age"] >= 60 { "senior" } else { "younger" }
+})
+println("Groups: " + groups.keys().join(", "))
+
+let total_age = C.sum_by(people, fn(person) => person["age"])
+println("Average age: " + C.average(people.map(fn(p) => p["age"])).round(1).to_s())
+println("Age range: #{C.min_max(people.map(fn(p) => p["age"]))}")
+
+let card = S.template("{{name}} <{{email}}>", {
+  name: display_names[0],
+  email: "ada@example.com",
+})
+println("Card: " + card)
+
+let checked = R.try_result(fn() {
+  V.validate(36, [
+    {"test": fn(age) => age >= 0, "message": "age must be non-negative"},
+    {"test": fn(age) => age < 150, "message": "age must be realistic"},
+  ])
+})
+println(checked.map(fn(age) => "validated age #{age}").unwrap_or("invalid"))
+
+let parse = fn(text) {
+  if V.is_integer_string(text) { R.ok(Int(text)) } else { R.err(ValueError("not an integer: " + text)) }
+}
+println(parse("42").map(fn(n) => n * 2).to_s())
+println(parse("nope").unwrap_or(0))

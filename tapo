@@ -1,0 +1,4 @@
+#!/bin/sh
+# TAPO launcher: runs the interpreter from the repository without installation.
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PYTHONPATH="$DIR/src${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m tapo "$@"

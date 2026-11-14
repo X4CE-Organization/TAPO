@@ -1,0 +1,45 @@
+# Classes, inheritance, mixins and operator overloading.
+
+class Animal {
+  var name = "?"
+  var sound = "..."
+
+  init(name) { self.name = name }
+
+  fn speak() => sound
+  fn describe() => "#{name} says #{speak()}"
+}
+
+class Dog < Animal {
+  init(name) {
+    super.init(name)
+    self.sound = "woof"
+  }
+
+  fn fetch(item) => "#{name} fetches the #{item}"
+}
+
+mixin Swimmer {
+  fn swim() => "#{name} is swimming"
+}
+
+class Duck < Animal with Swimmer {
+  init(name) { super.init(name); self.sound = "quack" }
+}
+
+class Vec {
+  var x = 0, y = 0
+  init(x, y) { self.x = x; self.y = y }
+  fn +(other) => Vec(x + other.x, y + other.y)
+  fn to_s() => "Vec(#{x}, #{y})"
+}
+
+let dog = Dog("Rex")
+println(dog.describe())
+println(dog.fetch("ball"))
+
+let duck = Duck("Donald")
+println(duck.speak())
+println(duck.swim())
+
+println(Vec(1, 2) + Vec(3, 4))

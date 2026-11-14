@@ -1,0 +1,51 @@
+# A tiny Option type, useful for APIs that want to model absence explicitly.
+# Import with:  import "std/option.takg" as Option
+
+class Option {
+  var present = false
+  var value = nil
+
+  init(present, value) {
+    self.present = present
+    self.value = value
+  }
+
+  fn some?() => self.present
+  fn none?() => not self.present
+
+  fn unwrap(message = "called unwrap on an empty Option") {
+    if not self.present { raise ValueError(message) }
+    self.value
+  }
+
+  fn unwrap_or(default) {
+    if self.present { self.value } else { default }
+  }
+
+  fn map(f) {
+    if self.present { Some(f(self.value)) } else { None() }
+  }
+
+  fn and_then(f) {
+    if self.present { f(self.value) } else { None() }
+  }
+
+  fn or_else(f) {
+    if self.present { self } else { f() }
+  }
+
+  fn to_s() {
+    if self.present { "Some(#{inspect(self.value)})" } else { "None" }
+  }
+}
+
+class Some < Option {
+  init(value) { super.init(true, value) }
+}
+
+class None < Option {
+  init() { super.init(false, nil) }
+}
+
+fn some(value) => Some(value)
+fn none() => None()

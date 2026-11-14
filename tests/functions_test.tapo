@@ -1,0 +1,75 @@
+import "std/test.takg" as T
+
+test("default and rest parameters", fn() {
+  fn greet(name = "world", punct = "!") => "hi #{name}#{punct}"
+  assert_eq(greet(), "hi world!")
+  assert_eq(greet("TAPO"), "hi TAPO!")
+  assert_eq(greet("TAPO", "?"), "hi TAPO?")
+  fn total(...xs) => xs.sum()
+  assert_eq(total(1, 2, 3), 6)
+  assert_eq(total(), 0)
+})
+
+test("splat arguments", fn() {
+  fn add3(a, b, c) => a + b + c
+  let xs = [1, 2, 3]
+  assert_eq(add3(...xs), 6)
+  assert_eq([0, ...xs, 4], [0, 1, 2, 3, 4])
+})
+
+test("closures and recursion", fn() {
+  fn counter() {
+    var n = 0
+    fn() { n += 1; n }
+  }
+  let c = counter()
+  assert_eq(c(), 1)
+  assert_eq(c(), 2)
+  fn fact(n) => if n <= 1 { 1 } else { n * fact(n - 1) }
+  assert_eq(fact(6), 720)
+})
+
+test("pipes and placeholders", fn() {
+  fn double(x) => x * 2
+  fn add(a, b) => a + b
+  assert_eq(5 |> double, 10)
+  assert_eq(5 |> add(3), 8)
+  assert_eq([1, 2, 3] |> _.map(fn(x) => x + 1) |> _.sum(), 9)
+})
+
+test("higher order functions", fn() {
+  fn compose(f, g) => fn(x) => f(g(x))
+  let inc = fn(x) => x + 1
+  let dbl = fn(x) => x * 2
+  assert_eq(compose(inc, dbl)(5), 11)
+  assert_eq([1, 2, 3].map(compose(inc, dbl)), [3, 5, 7])
+})
+
+test("callable objects", fn() {
+  class Adder {
+    var n = 0
+    init(n) { self.n = n }
+    fn call(x) => self.n + x
+  }
+  let add5 = Adder(5)
+  assert_eq(add5(3), 8)
+  assert_eq(add5.call(4), 9)
+})
+
+test("send and responds_to", fn() {
+  let xs = [3, 1, 2]
+  assert(xs.responds_to?("sort"))
+  assert_eq(xs.send("sort"), [1, 2, 3])
+  assert_eq([1, 2, 3].tap(fn(x) => nil), [1, 2, 3])
+  assert_eq(5.then(fn(x) => x + 1), 6)
+})
+
+test("loop and nested control flow", fn() {
+  var n = 0
+  loop {
+    n += 1
+    if n == 2 { continue }
+    if n >= 4 { break }
+  }
+  assert_eq(n, 4)
+})

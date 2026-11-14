@@ -1,0 +1,87 @@
+import "std/test.takg" as T
+
+var log = []
+
+aspect Audit {
+  before * (self, method, args) { log.push("before:#{method}:#{args.size}") }
+  after * (self, method, args, result) { log.push("after:#{method}:#{result}") }
+}
+
+aspect Around {
+  around echo (self, method, args, proceed) {
+    log.push("around:start")
+    let result = proceed(args)
+    log.push("around:end")
+    result
+  }
+}
+
+class Service {
+  use Audit
+  fn echo(x) => "echo:#{x}"
+}
+
+class Wrapped {
+  use Around
+  fn echo(x) => "wrapped:#{x}"
+}
+
+class Doubler {
+  fn double(x) => x * 2
+}
+
+aspect PlusOne {
+  around double (self, method, args, proceed) { proceed(args) + 1 }
+}
+
+test("before and after", fn() {
+  log = []
+  let s = Service()
+  assert_eq(s.echo("hi"), "echo:hi")
+  assert_eq(log, ["before:echo:1", "after:echo:echo:hi"])
+})
+
+test("around and proceed", fn() {
+  log = []
+  let w = Wrapped()
+  assert_eq(w.echo("x"), "wrapped:x")
+  assert_eq(log, ["around:start", "around:end"])
+})
+
+test("around can replace arguments", fn() {
+  aspect Override {
+    around shout (self, method, args, proceed) {
+      proceed(["changed"])
+    }
+  }
+  class Shouter {
+    use Override
+    fn shout(x) => x
+  }
+  assert_eq(Shouter().shout("original"), "changed")
+})
+
+test("around can skip the method", fn() {
+  aspect Skip {
+    around run (self, method, args, proceed) { "skipped" }
+  }
+  class Runner {
+    use Skip
+    fn run() => "ran"
+  }
+  assert_eq(Runner().run(), "skipped")
+})
+
+test("apply aspect to a class", fn() {
+  log = []
+  Doubler.apply(PlusOne)
+  assert_eq(Doubler().double(5), 11)
+})
+
+test("aspect selector only matches named methods", fn() {
+  log = []
+  let s = Service()
+  s.echo("a")
+  assert_eq(log.size, 2)
+  assert_eq(log[0], "before:echo:1")
+})

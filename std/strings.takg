@@ -1,0 +1,179 @@
+# strings: naming, formatting and text helpers.
+# Import with:  import "std/strings.takg" as S
+
+import "regex" as regex
+
+fn words(text) {
+  let spaced = regex.replace("([A-Z]+)([A-Z][a-z])", text, "\\1 \\2")
+  let spaced2 = regex.replace("([a-z0-9])([A-Z])", spaced, "\\1 \\2")
+  let parts = regex.split("[^\\w]+|_+", spaced2)
+  let out = []
+  for part in parts {
+    if part.size > 0 { out.push(part.lower()) }
+  }
+  out
+}
+
+fn camelize(text) {
+  let parts = words(text)
+  var out = ""
+  for part in parts {
+    if out.size == 0 { out = part } else { out += part.capitalize() }
+  }
+  out
+}
+
+fn pascalize(text) {
+  let out = []
+  for part in words(text) { out.push(part.capitalize()) }
+  out.join("")
+}
+
+fn snake_case(text) => words(text).join("_")
+
+fn kebab_case(text) => words(text).join("-")
+
+fn titleize(text) {
+  let out = []
+  for part in words(text) { out.push(part.capitalize()) }
+  out.join(" ")
+}
+
+fn humanize(text) {
+  let parts = words(text)
+  if parts.empty? { return "" }
+  let rest = parts.slice(1, parts.size - 1)
+  if rest.empty? { return parts[0].capitalize() }
+  parts[0].capitalize() + " " + rest.join(" ")
+}
+
+fn slugify(text) => words(text).join("-")
+
+fn initials(text) {
+  var out = ""
+  for part in words(text) {
+    if part.size > 0 { out += part[0].upper() }
+  }
+  out
+}
+
+fn truncate(text, length, ellipsis = "...") {
+  if text.size <= length { return text }
+  if length <= ellipsis.size { return text.slice(0, length) }
+  text.slice(0, length - ellipsis.size) + ellipsis
+}
+
+fn indent(text, spaces = 2) {
+  let pad = " " * spaces
+  let lines = text.split("\n")
+  let out = []
+  for line in lines { out.push(pad + line) }
+  out.join("\n")
+}
+
+fn _leading_spaces(line) {
+  var n = 0
+  for ch in line.chars() {
+    if ch == " " { n += 1 } else { break }
+  }
+  n
+}
+
+fn dedent(text) {
+  let lines = text.split("\n")
+  var smallest = nil
+  for line in lines {
+    if not line.trim().empty? {
+      let n = _leading_spaces(line)
+      if smallest == nil or n < smallest { smallest = n }
+    }
+  }
+  if smallest == nil or smallest == 0 { return text }
+  let out = []
+  for line in lines {
+    if line.size >= smallest { out.push(line.slice(smallest, line.size - smallest)) } else { out.push("") }
+  }
+  out.join("\n")
+}
+
+fn wrap(text, width = 80) {
+  if width <= 0 { raise ArgumentError("wrap width must be positive") }
+  let parts = text.split(" ")
+  let lines = []
+  var current = ""
+  for part in parts {
+    if current.size == 0 {
+      current = part
+    } else if current.size + 1 + part.size <= width {
+      current += " " + part
+    } else {
+      lines.push(current)
+      current = part
+    }
+  }
+  if current.size > 0 { lines.push(current) }
+  lines.join("\n")
+}
+
+fn escape_html(text) {
+  var out = text.replace("&", "&amp;")
+  out = out.replace("<", "&lt;")
+  out = out.replace(">", "&gt;")
+  out = out.replace('"', "&quot;")
+  out = out.replace("'", "&#39;")
+  out
+}
+
+fn unescape_html(text) {
+  var out = text.replace("&lt;", "<")
+  out = out.replace("&gt;", ">")
+  out = out.replace("&quot;", '"')
+  out = out.replace("&#39;", "'")
+  out = out.replace("&amp;", "&")
+  out
+}
+
+fn pluralize(word, count = 2) {
+  if count == 1 { return word }
+  if word.ends_with("s") or word.ends_with("x") or word.ends_with("z") or
+     word.ends_with("ch") or word.ends_with("sh") {
+    return word + "es"
+  }
+  if word.ends_with("y") and word.size > 1 {
+    let prev = word[word.size - 2].lower()
+    if not (prev == "a" or prev == "e" or prev == "i" or prev == "o" or prev == "u") {
+      return word.slice(0, word.size - 1) + "ies"
+    }
+  }
+  word + "s"
+}
+
+fn strip_prefix(text, prefix) {
+  if text.starts_with(prefix) {
+    text.slice(prefix.size, text.size - prefix.size)
+  } else {
+    text
+  }
+}
+
+fn strip_suffix(text, suffix) {
+  if text.ends_with(suffix) {
+    text.slice(0, text.size - suffix.size)
+  } else {
+    text
+  }
+}
+
+fn template(text, variables) {
+  var out = text
+  for pair in variables.pairs() {
+    out = out.replace("{{#{pair[0]}}}", pair[1].to_s())
+  }
+  out
+}
+
+fn quote(text) => inspect(text)
+
+fn is_blank(text) => text.trim().empty?
+
+fn split_words(text) => words(text)

@@ -1,0 +1,113 @@
+import "std/test.takg" as T
+
+test("arithmetic and precedence", fn() {
+  assert_eq(1 + 2 * 3, 7)
+  assert_eq((1 + 2) * 3, 9)
+  assert_eq(2 ** 3 ** 2, 512)
+  assert_eq(10 // 3, 3)
+  assert_eq(10 % 3, 1)
+  assert_eq(10 / 4, 2.5)
+  assert_eq((-5).abs(), 5)
+})
+
+test("strings and interpolation", fn() {
+  let name = "TAPO"
+  assert_eq("hello #{name}!", "hello TAPO!")
+  assert_eq("a" + "b", "ab")
+  assert_eq("ab" * 3, "ababab")
+  assert_eq("Hello".lower(), "hello")
+  assert_eq("a,b,c".split(","), ["a", "b", "c"])
+  assert_eq("  hi  ".trim(), "hi")
+  assert_eq("abc".chars(), ["a", "b", "c"])
+  assert("abc".starts_with("ab"))
+  assert("abc".contains("b"))
+  assert_eq("hello".index_of("ll"), 2)
+})
+
+test("lists and maps", fn() {
+  let xs = [1, 2, 3]
+  assert_eq(xs.size, 3)
+  assert_eq(xs[0], 1)
+  assert_eq(xs[-1], 3)
+  assert_eq(xs.slice(1, 2), [2, 3])
+  assert_eq(xs.map(fn(x) => x * 2), [2, 4, 6])
+  assert_eq(xs.filter(fn(x) => x.even?), [2])
+  assert_eq(xs.reduce(0, fn(a, b) => a + b), 6)
+  assert_eq(xs.sum(), 6)
+  assert_eq(xs.reverse(), [3, 2, 1])
+  let m = {a: 1, b: 2}
+  assert_eq(m["a"], 1)
+  assert_eq(m.a, 1)
+  assert_eq(m.keys().sort(), ["a", "b"])
+  assert_eq(m.values().sort(), [1, 2])
+  assert(m.has_key?("a"))
+})
+
+test("ranges and membership", fn() {
+  assert_eq((1..3).to_list(), [1, 2, 3])
+  assert_eq((1...3).to_list(), [1, 2])
+  assert_eq((3..1).to_list(), [3, 2, 1])
+  assert(2 in (1..3))
+  assert(3 in (3..1))
+  assert_eq((1..10).step(3), [1, 4, 7, 10])
+})
+
+test("control flow", fn() {
+  var out = []
+  for i in 0..5 {
+    if i == 2 { continue }
+    if i == 4 { break }
+    out.push(i)
+  }
+  assert_eq(out, [0, 1, 3])
+  var n = 0
+  until n == 3 { n += 1 }
+  assert_eq(n, 3)
+  let label = if n > 2 { "big" } else { "small" }
+  assert_eq(label, "big")
+  assert_eq((unless false { "yes" }), "yes")
+})
+
+test("destructuring and unicode names", fn() {
+  let [a, b, ...rest] = [1, 2, 3, 4]
+  assert_eq(a, 1)
+  assert_eq(b, 2)
+  assert_eq(rest, [3, 4])
+  let 变量 = 42
+  assert_eq(变量, 42)
+})
+
+test("nil safety and coalescing", fn() {
+  let x = nil
+  assert_eq(x ?? "fallback", "fallback")
+  assert_eq(x?.foo, nil)
+  var y = nil
+  y ??= 5
+  assert_eq(y, 5)
+  y ??= 9
+  assert_eq(y, 5)
+})
+
+test("constructors", fn() {
+  assert_eq(Int("ff", 16), 255)
+  assert_eq(Float("1.5"), 1.5)
+  assert_eq(String(42), "42")
+  assert_eq(List("abc"), ["a", "b", "c"])
+  assert_eq(Map([["a", 1]]), {"a": 1})
+  assert_eq(Range(1, 3, false).to_list(), [1, 2])
+  assert_eq(Bool(0), true)
+  assert_eq(Bool(nil), false)
+})
+
+test("globals min max and hash", fn() {
+  assert_eq(min(3, 1, 2), 1)
+  assert_eq(max([3, 1, 2]), 3)
+  assert_eq([1, 2].hash(), [1, 2].hash())
+  assert([1, 2].hash() != [2, 1].hash())
+})
+
+test("bang methods", fn() {
+  let m = {a: 1}
+  m.merge!({b: 2})
+  assert_eq(m, {"a": 1, "b": 2})
+})

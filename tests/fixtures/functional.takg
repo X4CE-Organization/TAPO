@@ -1,0 +1,6 @@
+# Regression fixture: this file is itself named functional.takg and imports
+# "functional". The resolver must skip the importing file and find
+# std/functional.takg instead.
+import "functional" as F
+
+let identity_value = F.identity(7)

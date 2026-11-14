@@ -1,0 +1,381 @@
+# Small collection helpers that complement the built-in List and Map methods.
+# Import with:  import "std/collections.takg" as C
+
+import "random" as random
+
+fn chunk(items, size) {
+  if size <= 0 { raise ArgumentError("chunk size must be positive") }
+  let out = []
+  var bucket = []
+  for item in items {
+    bucket.push(item)
+    if bucket.size == size {
+      out.push(bucket)
+      bucket = []
+    }
+  }
+  if not bucket.empty? { out.push(bucket) }
+  out
+}
+
+fn window(items, size) {
+  if size <= 0 { raise ArgumentError("window size must be positive") }
+  let out = []
+  if items.size < size { return out }
+  var i = 0
+  while i + size <= items.size {
+    out.push(items.slice(i, size))
+    i += 1
+  }
+  out
+}
+
+fn frequencies(items) {
+  let counts = {}
+  for item in items {
+    counts[item] = (counts.get(item, 0) + 1)
+  }
+  counts
+}
+
+fn group_by(items, key_fn) {
+  let groups = {}
+  for item in items {
+    let key = key_fn(item)
+    if not groups.has_key?(key) { groups[key] = [] }
+    groups[key].push(item)
+  }
+  groups
+}
+
+fn count_by(items, key_fn) {
+  let counts = {}
+  for item in items {
+    let key = key_fn(item)
+    counts[key] = counts.get(key, 0) + 1
+  }
+  counts
+}
+
+fn unique_by(items, key_fn) {
+  let seen = {}
+  let out = []
+  for item in items {
+    let key = key_fn(item)
+    if not seen.has_key?(key) {
+      seen[key] = true
+      out.push(item)
+    }
+  }
+  out
+}
+
+fn zip_with(left, right, f) {
+  let out = []
+  let n = min(left.size, right.size)
+  var i = 0
+  while i < n {
+    out.push(f(left[i], right[i]))
+    i += 1
+  }
+  out
+}
+
+fn flatten(items) {
+  let out = []
+  for item in items {
+    if item is List {
+      for inner in item { out.push(inner) }
+    } else {
+      out.push(item)
+    }
+  }
+  out
+}
+
+fn intersperse(items, separator) {
+  let out = []
+  var first = true
+  for item in items {
+    if not first { out.push(separator) }
+    out.push(item)
+    first = false
+  }
+  out
+}
+
+fn sum_by(items, f) {
+  var total = 0
+  for item in items { total += f(item) }
+  total
+}
+
+fn max_by(items, f) {
+  if items.empty? { return nil }
+  var best = items[0]
+  var best_key = f(best)
+  for item in items.slice(1, items.size - 1) {
+    let key = f(item)
+    if key > best_key { best = item; best_key = key }
+  }
+  best
+}
+
+fn min_by(items, f) {
+  if items.empty? { return nil }
+  var best = items[0]
+  var best_key = f(best)
+  for item in items.slice(1, items.size - 1) {
+    let key = f(item)
+    if key < best_key { best = item; best_key = key }
+  }
+  best
+}
+
+fn range_list(start, stop, step = 1) {
+  if step == 0 { raise ArgumentError("range step cannot be zero") }
+  let out = []
+  var i = start
+  if step > 0 {
+    while i < stop {
+      out.push(i)
+      i += step
+    }
+  } else {
+    while i > stop {
+      out.push(i)
+      i += step
+    }
+  }
+  out
+}
+
+fn partition(items, f) {
+  let yes = []
+  let no = []
+  for item in items {
+    if f(item) { yes.push(item) } else { no.push(item) }
+  }
+  [yes, no]
+}
+
+# ---- extras: higher-level collection helpers ----
+
+fn take_while(items, f) {
+  let out = []
+  for item in items {
+    if not f(item) { break }
+    out.push(item)
+  }
+  out
+}
+
+fn drop_while(items, f) {
+  var dropping = true
+  let out = []
+  for item in items {
+    if dropping and f(item) { continue }
+    dropping = false
+    out.push(item)
+  }
+  out
+}
+
+fn find_map(items, f) {
+  for item in items {
+    let value = f(item)
+    if value != nil { return value }
+  }
+  nil
+}
+
+fn scan(items, initial, f) {
+  let out = [initial]
+  var acc = initial
+  for item in items {
+    acc = f(acc, item)
+    out.push(acc)
+  }
+  out
+}
+
+fn chunk_by(items, f) {
+  let out = []
+  if items.empty? { return out }
+  var current_key = f(items[0])
+  var bucket = [items[0]]
+  for item in items.slice(1, items.size - 1) {
+    let key = f(item)
+    if key == current_key {
+      bucket.push(item)
+    } else {
+      out.push({"key": current_key, "items": bucket})
+      current_key = key
+      bucket = [item]
+    }
+  }
+  out.push({"key": current_key, "items": bucket})
+  out
+}
+
+fn transpose(matrix) {
+  if matrix.empty? { return [] }
+  var width = matrix[0].size
+  for row in matrix {
+    if row.size < width { width = row.size }
+  }
+  let out = []
+  var i = 0
+  while i < width {
+    let column = []
+    for row in matrix { column.push(row[i]) }
+    out.push(column)
+    i += 1
+  }
+  out
+}
+
+fn unzip(pairs) {
+  let left = []
+  let right = []
+  for pair in pairs {
+    left.push(pair[0])
+    right.push(pair[1])
+  }
+  [left, right]
+}
+
+fn pairwise(items) {
+  let out = []
+  var i = 0
+  while i + 1 < items.size {
+    out.push([items[i], items[i + 1]])
+    i += 1
+  }
+  out
+}
+
+fn deep_flatten(items) {
+  let out = []
+  for item in items {
+    if item is List {
+      for inner in deep_flatten(item) { out.push(inner) }
+    } else {
+      out.push(item)
+    }
+  }
+  out
+}
+
+fn index_by(items, key_fn) {
+  let out = {}
+  for item in items { out[key_fn(item)] = item }
+  out
+}
+
+fn count_if(items, f) {
+  var n = 0
+  for item in items {
+    if f(item) { n += 1 }
+  }
+  n
+}
+
+fn average(items) {
+  if items.empty? { return nil }
+  var total = 0
+  for item in items { total += item }
+  total / items.size
+}
+
+fn median(items) {
+  if items.empty? { return nil }
+  let sorted_items = items.sort()
+  let middle = sorted_items.size // 2
+  if sorted_items.size % 2 == 1 { return sorted_items[middle] }
+  (sorted_items[middle - 1] + sorted_items[middle]) / 2
+}
+
+fn mode(items) {
+  if items.empty? { return nil }
+  let counts = frequencies(items)
+  var best = nil
+  var best_count = -1
+  for pair in counts.pairs() {
+    if pair[1] > best_count {
+      best = pair[0]
+      best_count = pair[1]
+    }
+  }
+  best
+}
+
+fn min_max(items) {
+  if items.empty? { return [nil, nil] }
+  [items.min(), items.max()]
+}
+
+fn zip_longest(left, right) {
+  let out = []
+  let n = max(left.size, right.size)
+  var i = 0
+  while i < n {
+    let a = if i < left.size { left[i] } else { nil }
+    let b = if i < right.size { right[i] } else { nil }
+    out.push([a, b])
+    i += 1
+  }
+  out
+}
+
+fn sort_by_desc(items, f) => items.sort_by(f).reverse()
+
+fn pick_keys(map, keys) {
+  let out = {}
+  for key in keys {
+    if map.has_key?(key) { out[key] = map[key] }
+  }
+  out
+}
+
+fn omit_keys(map, keys) {
+  let out = {}
+  for pair in map.pairs() {
+    if not keys.contains(pair[0]) { out[pair[0]] = pair[1] }
+  }
+  out
+}
+
+fn deep_merge(left, right) {
+  let out = left.dup()
+  for pair in right.pairs() {
+    let key = pair[0]
+    let value = pair[1]
+    if out.has_key?(key) and out[key] is Map and value is Map {
+      out[key] = deep_merge(out[key], value)
+    } else {
+      out[key] = value
+    }
+  }
+  out
+}
+
+fn invert_map(map) {
+  let out = {}
+  for pair in map.pairs() { out[pair[1]] = pair[0] }
+  out
+}
+
+fn each_cons(items, n) => window(items, n)
+
+fn chunk_every(items, n) => chunk(items, n)
+
+fn flat_map(items, f) => items.flat_map(f)
+
+fn sample(items, n = 1) => random.sample(items, n)
+
+fn shuffle(items) {
+  let copy = items.dup()
+  random.shuffle(copy)
+  copy
+}

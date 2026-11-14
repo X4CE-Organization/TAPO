@@ -1,0 +1,62 @@
+# Extra assertions for TAPO test suites.
+# Import with:  import "std/test.takg" as T
+
+import "regex" as regex
+
+fn fail_with(message) {
+  raise AssertionError(message)
+}
+
+fn assert_nil(value, message = nil) {
+  if value != nil {
+    fail_with((message or "expected nil") + ", got " + inspect(value))
+  }
+  nil
+}
+
+fn assert_not_nil(value, message = nil) {
+  if value == nil {
+    fail_with(message or "expected a value, got nil")
+  }
+  value
+}
+
+fn assert_includes(collection, item, message = nil) {
+  if not (item in collection) {
+    fail_with((message or "expected collection to include value") + ": " + inspect(item))
+  }
+  collection
+}
+
+fn assert_excludes(collection, item, message = nil) {
+  if item in collection {
+    fail_with((message or "expected collection to exclude value") + ": " + inspect(item))
+  }
+  collection
+}
+
+fn assert_match(pattern, text, message = nil) {
+  if not regex.test?(pattern, text) {
+    fail_with((message or "expected text to match pattern") + ": " + inspect(text))
+  }
+  text
+}
+
+fn assert_close(actual, expected, tolerance = 0.000001, message = nil) {
+  if (actual - expected).abs() > tolerance {
+    fail_with((message or "values are not close") + ": " + inspect(actual) + " vs " + inspect(expected))
+  }
+  actual
+}
+
+fn refute(condition, message = nil) {
+  if condition { fail_with(message or "expected condition to be false") }
+  nil
+}
+
+fn assert_type(value, klass, message = nil) {
+  if not value.is_a?(klass) {
+    fail_with((message or "unexpected type") + ": expected " + klass.name + ", got " + value.class.name)
+  }
+  value
+}
