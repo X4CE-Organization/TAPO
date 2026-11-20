@@ -12,6 +12,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "Lib", "site-packages"))
+# Make the bundled standard library discoverable even when the host Python
+# executable lives outside this portable directory.
+os.environ.setdefault("TAPO_PATH", os.path.join(HERE, "std"))
 
 from tapo.cli import main
 
