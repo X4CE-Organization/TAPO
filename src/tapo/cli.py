@@ -5,6 +5,7 @@ Usage:
     tapo run file.tapo           run a program
     tapo repl                  interactive session
     tapo test [paths...]       run *_test.tapo files
+    tapo fmt [paths...]        format .tapo/.takg sources in place
     tapo check <file>          parse without running (.tapo or .takg)
     tapo -e 'code'             evaluate a one-liner
     tapo version               print version information
@@ -19,6 +20,7 @@ from . import __version__
 from .errors import TapoException, TapoExit, TapoSyntaxError
 from .interpreter import Interpreter
 from .parser import parse
+from .formatter import discover as discover_sources, format_file
 
 BANNER = "TAPO %s  \u00b7  \u00a9 2026 X4CE  \u00b7  MIT" % __version__
 
@@ -29,6 +31,7 @@ Usage:
   tapo run <file.tapo>         run a program
   tapo repl                  start an interactive session
   tapo test [paths...]       run test files (default: tests/)
+  tapo fmt [--check] [paths...]  format sources in place (default: .)
   tapo check <file>          parse a .tapo program or .takg library
   tapo -e <code>             evaluate code from the command line
   tapo version               show version information
@@ -101,6 +104,34 @@ def cmd_run(path, args, interp=None):
     except KeyboardInterrupt:
         sys.stderr.write("\ninterrupted\n")
         return 130
+    return 0
+
+
+def cmd_fmt(argv):
+    check_only = False
+    if argv and argv[0] in ("--check", "-c"):
+        check_only = True
+        argv = argv[1:]
+    paths = argv or ["."]
+    changed = 0
+    total = 0
+    for path in discover_sources(paths):
+        total += 1
+        try:
+            did_change, _ = format_file(path, check=check_only)
+        except OSError as exc:
+            sys.stderr.write("tapo: cannot format %s: %s\n" % (path, exc))
+            return 2
+        if did_change:
+            changed += 1
+            if check_only:
+                sys.stdout.write("would format %s\n" % path)
+            else:
+                sys.stdout.write("formatted %s\n" % path)
+    if check_only:
+        sys.stdout.write("%d file(s) checked, %d need formatting\n" % (total, changed))
+        return 1 if changed else 0
+    sys.stdout.write("%d file(s) formatted, %d changed\n" % (total, changed))
     return 0
 
 
@@ -300,6 +331,8 @@ def main(argv=None):
         return cmd_run(argv[1], argv[2:])
     if first == "test":
         return cmd_test(argv[1:])
+    if first == "fmt":
+        return cmd_fmt(argv[1:])
     if first == "check":
         if len(argv) < 2:
             sys.stderr.write("tapo: check needs a file\n")

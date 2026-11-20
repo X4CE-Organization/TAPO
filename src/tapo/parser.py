@@ -203,6 +203,8 @@ class Parser:
                 return self.parse_class()
             if kw == "mixin":
                 return self.parse_mixin()
+            if kw == "enum":
+                return self.parse_enum()
             if kw == "aspect":
                 return self.parse_aspect()
             if kw == "fn":
@@ -237,6 +239,14 @@ class Parser:
                 self.advance()
                 value = self.parse_expression(0)
                 return A.Raise(value, tok.line, tok.col)
+            if kw == "yield":
+                self.advance()
+                if (self.current.type == "NEWLINE" or self.check_op(";")
+                        or self.check_op("}") or self.check("EOF")):
+                    return A.Yield(None, tok.line, tok.col)
+                return A.Yield(self.parse_expression(0), tok.line, tok.col)
+            if kw == "with":
+                return self.parse_with()
             if kw == "while":
                 return self.parse_while()
             if kw == "until":
@@ -357,6 +367,47 @@ class Parser:
                 A.Identifier(name.value, name.line, name.col), start.line, start.col
             )
         self.error("expected a declaration or name after 'export'")
+
+    def parse_with(self):
+        start = self.expect_kw("with")
+        resource = self.parse_expression(0)
+        name = None
+        if self.match_kw("as"):
+            name = self.expect_ident("resource name")
+        body = self.parse_block()
+        return A.With(resource, name, body, start.line, start.col)
+
+    def parse_enum(self):
+        start = self.expect_kw("enum")
+        name = self.expect_ident("enum name")
+        self.expect_op("{")
+        variants = []
+        self.skip_separators()
+        while not self.check_op("}"):
+            vtok = self.current
+            vname = self.expect_ident("variant name")
+            fields = []
+            if self.match_op("("):
+                self.skip_newlines()
+                while not self.check_op(")"):
+                    fields.append(self.expect_ident("field name"))
+                    self.skip_newlines()
+                    if self.check_op(","):
+                        self.advance()
+                        self.skip_newlines()
+                        continue
+                    break
+                self.expect_op(")")
+            variants.append(A.EnumVariant(vname, fields, vtok.line, vtok.col))
+            if self.check_op(",") or self.check_op(";"):
+                self.advance()
+                self.skip_separators()
+            elif self.current.type == "NEWLINE":
+                self.skip_separators()
+            elif not self.check_op("}"):
+                self.error("expected a newline, ',' or '}' after enum variant")
+        self.expect_op("}")
+        return A.EnumDecl(name, variants, start.line, start.col)
 
     def parse_while(self, is_until=False):
         start = self.advance()
@@ -658,6 +709,8 @@ class Parser:
                 self.advance()
                 operand = self.parse_expression(6)
                 return A.Unary("not", operand, tok.line, tok.col)
+            if kw == "with":
+                return self.parse_with()
         if tok.type == "OP":
             if tok.value in ("-", "+", "!", "~"):
                 self.advance()
@@ -956,6 +1009,10 @@ class Parser:
                 name += "." + self.advance().value
             if self.check_op("("):
                 return self.parse_class_pattern(name, tok)
+            # Uppercase names are class/enum-variant patterns; lowercase names
+            # are bindings.  Use `Name as x` if a binding is really wanted.
+            if name[0].isupper() or "." in name:
+                return A.PClass(name, [], [], tok.line, tok.col)
             return A.PVar(name, tok.line, tok.col)
         if tok.type == "OP" and tok.value == "[":
             return self.parse_list_pattern()

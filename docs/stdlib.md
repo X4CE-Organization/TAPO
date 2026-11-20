@@ -204,6 +204,22 @@ Constructor: `Range(start, end, inclusive = true)`.
 
 ---
 
+## Generator
+
+A function containing `yield` returns a `Generator`. Generators are lazy and
+single-use.
+
+| Method | Meaning |
+| --- | --- |
+| `next()` | Return the next yielded value; raise `StopIteration` when exhausted. |
+| `done?` | True once the generator is exhausted or closed. |
+| `each(fn)` | Call `fn` for each remaining value. |
+| `to_list()` | Collect all remaining values. |
+| `take(n)` | Collect at most `n` values, without over-consuming. |
+| `close()` | Close the generator, running its `finally` blocks. |
+
+`for value in generator { ... }` uses the same iteration protocol.
+
 ## Bool and Nil
 
 `Bool`: `to_i` (1/0). `Nil` has no special methods beyond the object protocol;
@@ -296,6 +312,9 @@ The same library also provides higher-level helpers: `take_while`, `drop_while`,
 ### Extra libraries
 
 These optional `.takg` libraries are independent; import each one directly.
+`std/functional.takg`, `std/strings.takg`, `std/result.takg`,
+`std/validation.takg`, `std/io.takg`, `std/csv.takg`, `std/path.takg` and
+`std/cli.takg` are documented in [libraries.md](libraries.md).
 
 | Library | Contents |
 | --- | --- |
@@ -315,4 +334,4 @@ See [Extra libraries](libraries.md) for examples and details.
 Built-ins: `RuntimeError`, `ArgumentError`, `TypeError`, `NameError`,
 `AttributeError`, `IndexError`, `KeyError`, `ValueError`, `ZeroDivisionError`,
 `AssertionError`, `ImportError`, `IOError`, `MatchError`,
-`NotImplementedError`, `FrozenError`.
+`NotImplementedError`, `FrozenError`, `StopIteration`.

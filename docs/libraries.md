@@ -20,6 +20,9 @@ println(C.median([3, 1, 2]))         # 2
 | `std/result.takg` | Explicit `Result` / `Ok` / `Err` values. |
 | `std/validation.takg` | Predicates and guard helpers. |
 | `std/io.takg` | JSON/JSONL and filesystem conveniences. |
+| `std/csv.takg` | CSV parsing/stringifying and map conversion. |
+| `std/path.takg` | Path components, suffixes and filesystem helpers. |
+| `std/cli.takg` | Command-line flag and option parsing. |
 
 Every library is optional. Import only the ones a file needs.
 
@@ -221,6 +224,75 @@ paths in directory order and does not follow symlinked directories specially.
 
 ---
 
+## std/csv.takg
+
+RFC-style CSV with quoted fields, doubled quotes and newlines inside quotes.
+
+| Function | Meaning |
+| --- | --- |
+| `parse(text, delimiter = ",")` | Parse CSV text into a list of rows (lists of strings). |
+| `stringify(rows, delimiter = ",")` | Serialize rows; quotes cells only when needed. |
+| `read(path, delimiter = ",")` | Read and parse a file. |
+| `write(path, rows, delimiter = ",")` | Write rows to a file. |
+| `to_maps(rows)` | Use the first row as keys; one map per data row. |
+| `from_maps(records, headers = nil)` | Convert maps back to rows; headers default to the first map's keys. |
+
+`stringify` does not add a trailing newline. `to_maps` returns `[]` for empty
+input and skips no rows.
+
+```tapo
+import "std/csv.takg" as csv
+
+let rows = csv.parse("name,age\nAda,36\n")
+println(rows[1][0])          # Ada
+println(csv.to_maps(rows))   # [{"name": "Ada", "age": "36"}]
+```
+
+---
+
+## std/path.takg
+
+Thin, predictable path helpers built on the `fs` module.
+
+| Function | Meaning |
+| --- | --- |
+| `join(...parts)` | Join path components. |
+| `basename(path)` / `dirname(path)` | Last component / parent. |
+| `extname(path)` / `stem(path)` | Extension including dot / name without extension. |
+| `split(path)` | `[dirname, basename]`. |
+| `absolute(path)` | Absolute path relative to the current directory; leaves absolute paths unchanged. |
+| `with_suffix(path, suffix)` | Replace or add an extension. |
+| `ensure_dir(path)` / `mkdir(path, parents = true)` | Create directories. |
+| `exists?`, `is_file?`, `is_dir?`, `list`, `walk`, `size`, `remove` | Filesystem queries and operations. |
+
+---
+
+## std/cli.takg
+
+Small argument parser for command-line tools. It does not guess whether an
+option takes a value: list value-taking options explicitly.
+
+| Function | Meaning |
+| --- | --- |
+| `parse(argv, value_options = [])` | Returns `{flags, options, positionals}`. |
+| `flag?(parsed, name)` | Whether a boolean flag was set. |
+| `option(parsed, name, default = nil)` | Value of `--name=value`, `--name value` (if listed in `value_options`), or default. |
+| `positionals(parsed)` | Non-option arguments. |
+| `usage(program, lines)` | Print a usage block. |
+
+`--` ends option parsing; remaining arguments are positional. Short flags like
+`-v` and `-n` are supported as booleans.
+
+```tapo
+import "std/cli.takg" as cli
+
+let args = cli.parse(argv, ["output"])
+if cli.flag?(args, "verbose") { println("verbose") }
+println(cli.option(args, "output", "out.txt"))
+```
+
+---
+
 ## Notes and limitations
 
 - These libraries are written in TAPO; `fn` is a keyword, so callback parameters are named `f`
@@ -236,9 +308,9 @@ paths in directory order and does not follow symlinked directories specially.
 
 ## Tests
 
-The extra libraries are covered by `tests/extras_test.tapo` (test programs remain
-`.tapo`):
+The extra libraries are covered by `tests/extras_test.tapo` and
+`tests/libraries_extra_test.tapo` (test programs remain `.tapo`):
 
 ```bash
-./tapo test tests/extras_test.tapo
+./tapo test tests/extras_test.tapo tests/libraries_extra_test.tapo
 ```

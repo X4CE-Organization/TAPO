@@ -30,7 +30,7 @@ println("Age range: #{C.min_max(people.map(fn(p) => p["age"]))}")
 
 let card = S.template("{{name}} <{{email}}>", {
   name: display_names[0],
-  email: "ada@example.com",
+    email: "ada@example.com",
 })
 println("Card: " + card)
 
@@ -38,7 +38,7 @@ let checked = R.try_result(fn() {
   V.validate(36, [
     {"test": fn(age) => age >= 0, "message": "age must be non-negative"},
     {"test": fn(age) => age < 150, "message": "age must be realistic"},
-  ])
+])
 })
 println(checked.map(fn(age) => "validated age #{age}").unwrap_or("invalid"))
 

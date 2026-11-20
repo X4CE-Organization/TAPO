@@ -1,0 +1,26 @@
+# `with` closes a resource on normal exit, return, break or error.
+
+class Timer {
+  var name = ""
+  var closed = false
+  init(name) { self.name = name }
+  fn close() {
+    self.closed = true
+    println("closing #{self.name}")
+  }
+}
+
+with Timer("outer") as timer {
+  println("working in #{timer.name}")
+}
+
+let result = with Timer("value") { 6 * 7 }
+println("result = #{result}")
+
+try {
+  with Timer("error path") {
+    raise ValueError("boom")
+  }
+} catch err {
+  println("caught #{err.message}")
+}

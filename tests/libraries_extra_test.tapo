@@ -1,0 +1,41 @@
+import "std/csv.takg" as csv
+import "std/path.takg" as path
+import "std/cli.takg" as cli
+
+test("csv round trip", fn() {
+  let text = "name,note\n\"Ada, A.\",\"hello \"\"world\"\"\"\nBob,ok\n"
+  let rows = csv.parse(text)
+  assert_eq(rows, [["name", "note"], ["Ada, A.", "hello \"world\""], ["Bob", "ok"]])
+  assert_eq(csv.stringify(rows), text.trim())
+  assert_eq(csv.to_maps(rows), [
+    {"name": "Ada, A.", "note": "hello \"world\""},
+    {"name": "Bob", "note": "ok"}
+])
+  let records = [{"name": "Ada", "age": 36}, {"name": "Bob", "age": 40}]
+  assert_eq(csv.from_maps(records), [["name", "age"], ["Ada", 36], ["Bob", 40]])
+})
+
+test("path helpers", fn() {
+  assert_eq(path.basename("a/b.txt"), "b.txt")
+  assert_eq(path.dirname("a/b.txt"), "a")
+  assert_eq(path.extname("a/b.txt"), ".txt")
+  assert_eq(path.stem("a/b.txt"), "b")
+  assert_eq(path.with_suffix("a/b.txt", ".md"), "a/b.md")
+  assert_eq(path.split("a/b.txt"), ["a", "b.txt"])
+  assert(path.absolute("x").starts_with("/"))
+  assert(path.exists?("."))
+  assert(path.is_dir?("."))
+})
+
+test("cli argument parsing", fn() {
+  let args = cli.parse(["--verbose", "--output=out.txt", "-n", "file.tapo"], ["output"])
+  assert(cli.flag?(args, "verbose"))
+  assert(cli.flag?(args, "n"))
+  assert_eq(cli.option(args, "output"), "out.txt")
+  assert_eq(cli.option(args, "missing", "fallback"), "fallback")
+  assert_eq(cli.positionals(args), ["file.tapo"])
+
+  let split = cli.parse(["--output", "result.txt", "--", "--literal"], ["output"])
+  assert_eq(cli.option(split, "output"), "result.txt")
+  assert_eq(split["positionals"], ["--literal"])
+})

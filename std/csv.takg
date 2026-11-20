@@ -1,0 +1,100 @@
+# CSV parsing and writing. Supports quoted fields, escaped quotes and
+# newlines inside quoted fields.
+
+import "fs" as fs
+
+fn parse(text, delimiter = ",") {
+  let rows = []
+  var row = []
+  var field = ""
+  var quoted = false
+  var i = 0
+  while i < text.size {
+    let ch = text[i]
+    if quoted {
+      if ch == '"' {
+        if i + 1 < text.size and text[i + 1] == '"' {
+          field += '"'
+          i += 1
+        } else {
+          quoted = false
+        }
+      } else {
+        field += ch
+      }
+    } else if ch == '"' {
+      quoted = true
+    } else if ch == delimiter {
+      row.push(field)
+      field = ""
+    } else if ch == "\n" {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ""
+    } else if ch == "\r" {
+      # CRLF: the following newline ends the row.
+    } else {
+      field += ch
+    }
+    i += 1
+  }
+  if field.size > 0 or row.size > 0 {
+    row.push(field)
+    rows.push(row)
+  }
+  rows
+}
+
+fn stringify(rows, delimiter = ",") {
+  let lines = []
+  for row in rows {
+    let cells = []
+    for cell in row {
+      let text = cell.to_s()
+      if text.contains(delimiter) or text.contains('"') or text.contains("\n") or text.contains("\r") {
+        cells.push('"' + text.replace('"', '""') + '"')
+      } else {
+        cells.push(text)
+      }
+    }
+    lines.push(cells.join(delimiter))
+  }
+  lines.join("\n")
+}
+
+fn read(path, delimiter = ",") => parse(fs.read(path), delimiter)
+
+fn write(path, rows, delimiter = ",") {
+  fs.write(path, stringify(rows, delimiter))
+  rows
+}
+
+fn to_maps(rows) {
+  if rows.empty? { return [] }
+  let headers = rows[0]
+  let out = []
+  for row in rows.slice(1, rows.size - 1) {
+    let record = {}
+    var i = 0
+    while i < headers.size {
+      if i < row.size { record[headers[i]] = row[i] } else { record[headers[i]] = nil }
+      i += 1
+    }
+    out.push(record)
+  }
+  out
+}
+
+fn from_maps(records, headers = nil) {
+  if records.empty? { return [] }
+  var names = headers
+  if names == nil { names = records[0].keys() }
+  let rows = [names]
+  for record in records {
+    var row = []
+    for name in names { row.push(record[name]) }
+    rows.push(row)
+  }
+  rows
+}

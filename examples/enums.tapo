@@ -1,0 +1,27 @@
+# Algebraic data types: enum variants are classes and work in patterns.
+
+enum Shape {
+  Circle(radius)
+  Rect(width, height)
+}
+
+enum Color { Red, Green, Blue }
+
+fn describe(shape) {
+  match shape {
+    Circle(r) => "circle with radius #{r}",
+    Rect(w, h) => "rectangle #{w}x#{h}",
+    else => "unknown"
+  }
+}
+
+println(describe(Circle(2)))
+println(describe(Rect(3, 4)))
+println(Circle(2) == Circle(2))
+
+let color = Green()
+match color {
+  Red => println("red"),
+  Green => println("green"),
+  else => println("other")
+}

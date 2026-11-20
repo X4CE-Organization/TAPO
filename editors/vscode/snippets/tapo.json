@@ -118,5 +118,34 @@
       "\t|> _.${2:method}(${3:args})"
     ],
     "description": "Pipeline with placeholder"
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": [
+      "enum ${1:Name} {",
+      "\t${2:Variant}(${3:field})",
+      "\t${4:Other}",
+      "}"
+    ],
+    "description": "Declare an algebraic enum"
+  },
+  "Generator": {
+    "prefix": "gen",
+    "body": [
+      "fn ${1:name}(${2:args}) {",
+      "\t${3:yield 1}",
+      "\t${4:yield 2}",
+      "}"
+    ],
+    "description": "Declare a generator function"
+  },
+  "With": {
+    "prefix": "with",
+    "body": [
+      "with ${1:resource} as ${2:name} {",
+      "\t${3:body}",
+      "}"
+    ],
+    "description": "Manage a resource with automatic close"
   }
 }

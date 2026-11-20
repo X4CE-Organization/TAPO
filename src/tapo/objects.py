@@ -32,6 +32,9 @@ class TapoClass:
         "is_error",
         "builtin",
         "module",
+        "is_enum",
+        "is_enum_variant",
+        "enum_parent",
     )
 
     def __init__(self, name, superclass=None, native=None, is_error=False, builtin=False):
@@ -48,6 +51,9 @@ class TapoClass:
         self.is_error = is_error
         self.builtin = builtin
         self.module = None
+        self.is_enum = False
+        self.is_enum_variant = False
+        self.enum_parent = None
 
     def find_method(self, name):
         for klass in self.mro:
@@ -203,6 +209,7 @@ class TapoFunction:
         "lexical_self",
         "is_method",
         "line",
+        "is_generator",
     )
 
     def __init__(
@@ -216,6 +223,7 @@ class TapoFunction:
         lexical_self=None,
         is_method=False,
         line=None,
+        is_generator=False,
     ):
         self.name = name
         self.params = params
@@ -226,6 +234,7 @@ class TapoFunction:
         self.lexical_self = lexical_self
         self.is_method = is_method
         self.line = line
+        self.is_generator = is_generator
 
     def __repr__(self):
         return "<fn %s>" % self.name
@@ -273,6 +282,81 @@ class TapoBoundBuiltin:
         return "<builtin method %s>" % self.name
 
 
+class TapoGenerator:
+    """Lazily evaluated TAPO function.
+
+    The Python generator is only started on the first `.next()` call.  Frames
+    and file-stack entries are removed while the generator is suspended so
+    ordinary code can run in between yields.
+    """
+
+    __slots__ = (
+        "interpreter",
+        "fn",
+        "args",
+        "node",
+        "self_obj",
+        "defining_class",
+        "method_name",
+        "display_name",
+        "pygen",
+        "done",
+        "closed",
+    )
+
+    def __init__(self, interpreter, fn, args, node=None, self_obj=None,
+                 defining_class=None, method_name=None, display_name=None):
+        self.interpreter = interpreter
+        self.fn = fn
+        self.args = list(args)
+        self.node = node
+        self.self_obj = self_obj
+        self.defining_class = defining_class
+        self.method_name = method_name
+        self.display_name = display_name
+        self.pygen = None
+        self.done = False
+        self.closed = False
+
+    def start(self):
+        if self.pygen is None:
+            self.pygen = self.interpreter._generator_run(
+                self.fn, self.args, self.node, self.self_obj,
+                self.defining_class, self.method_name, self.display_name,
+            )
+        return self.pygen
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.done:
+            raise StopIteration
+        pygen = self.start()
+        try:
+            return next(pygen)
+        except StopIteration:
+            self.done = True
+            raise
+
+    def next_value(self, node=None):
+        try:
+            return next(self)
+        except StopIteration:
+            self.interpreter.error("StopIteration", "generator is exhausted", node)
+
+    def close(self):
+        if self.pygen is not None and not self.done and not self.closed:
+            self.closed = True
+            try:
+                self.pygen.close()
+            finally:
+                self.done = True
+
+    def __repr__(self):
+        return "<generator %s>" % self.fn.name
+
+
 class TapoProceed:
     __slots__ = ("interpreter", "callback", "label")
 
@@ -307,6 +391,7 @@ def make_error_classes():
         ("MatchError", "Error"),
         ("NotImplementedError", "Error"),
         ("FrozenError", "Error"),
+        ("StopIteration", "Error"),
     ]
     for name, parent in hierarchy:
         classes[name] = TapoClass(name, classes[parent], is_error=True, builtin=True)

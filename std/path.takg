@@ -1,0 +1,62 @@
+# Path helpers built on the fs module.
+
+import "fs" as fs
+import "sys" as sys
+
+fn join(...parts) => fs.join(...parts)
+fn basename(path) => fs.basename(path)
+fn dirname(path) => fs.dirname(path)
+fn exists?(path) => fs.exists?(path)
+fn is_file?(path) => fs.is_file?(path)
+fn is_dir?(path) => fs.is_dir?(path)
+fn list(path) => fs.list(path)
+fn mkdir(path, parents = true) => fs.mkdir(path, parents)
+fn remove(path) => fs.remove(path)
+fn size(path) => fs.size(path)
+
+fn extname(path) {
+  let base = fs.basename(path)
+  var i = base.size - 1
+  while i >= 0 {
+    if base[i] == "." { return base.slice(i, base.size - i) }
+    i -= 1
+  }
+  ""
+}
+
+fn stem(path) {
+  let base = fs.basename(path)
+  let ext = extname(base)
+  if ext.size == 0 { return base }
+  base.slice(0, base.size - ext.size)
+}
+
+fn split(path) => [fs.dirname(path), fs.basename(path)]
+
+fn absolute(path) {
+  if path.starts_with("/") { return path }
+  if path.starts_with("~") { return sys.home + path.slice(1, path.size - 1) }
+  fs.join(sys.cwd(), path)
+}
+
+fn with_suffix(path, suffix) {
+  let ext = extname(path)
+  if ext.size == 0 { path + suffix } else { path.slice(0, path.size - ext.size) + suffix }
+}
+
+fn ensure_dir(path) {
+  if not fs.exists?(path) { fs.mkdir(path, true) }
+  path
+}
+
+fn walk(path) {
+  let out = []
+  for name in fs.list(path) {
+    let child = fs.join(path, name)
+    out.push(child)
+    if fs.is_dir?(child) {
+      for nested in walk(child) { out.push(nested) }
+    }
+  }
+  out
+}

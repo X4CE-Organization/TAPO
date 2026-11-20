@@ -125,6 +125,14 @@ match value {
   aspect application at class definition or at runtime.
 - **Pattern matching**: literals, lists, maps, class destructuring, guards,
   or-patterns, `as` bindings, rest patterns.
+- **Algebraic enums**: `enum Shape { Circle(r), Rect(w, h) }`; variants are
+  classes and participate in pattern matching.
+- **Generators**: `yield` produces lazy sequences with `next`, `to_list`,
+  `take`, `for` and automatic cleanup via `close`.
+- **Resource management**: `with resource as name { ... }` always calls
+  `close`, including on errors, returns and breaks.
+- **Formatter**: `tapo fmt` normalises indentation and continuation lines while
+  preserving comments and string contents; `--check` is CI-friendly.
 - **Pipelines**: `x |> f`, `x |> f(a)`, and `x |> _.method()` placeholders.
 - **Modules**: file modules, explicit and default exports, private `_names`,
   built-in modules, circular-import detection.
@@ -134,7 +142,9 @@ match value {
 - **Extra libraries**: independent, optional `.takg` libraries for functional
   helpers (`std/functional.takg`), strings (`std/strings.takg`), collection extras
   (`std/collections.takg`), `Result` (`std/result.takg`), validation
-  (`std/validation.takg`) and JSON/JSONL/filesystem I/O (`std/io.takg`).
+  (`std/validation.takg`), JSON/JSONL/filesystem I/O (`std/io.takg`), CSV
+  (`std/csv.takg`), path manipulation (`std/path.takg`) and CLI argument parsing
+  (`std/cli.takg`).
 - **Test runner**: `tapo test`, `test(...)`, assertions and a small stdlib test kit.
 - **REPL and tooling**: interactive REPL, `check`, `-e`, VS Code grammar/snippets.
 
@@ -149,6 +159,7 @@ match value {
 | `tapo repl` | Start the interactive REPL. |
 | `tapo test [paths...]` | Run `*_test.tapo` files (default `tests/`). |
 | `tapo check file` | Parse a `.tapo` program or `.takg` library without executing it. |
+| `tapo fmt [--check] [paths...]` | Format sources in place; `--check` reports files that would change. |
 | `tapo -e 'code'` | Evaluate a one-liner. |
 | `tapo version` | Show the version banner. |
 | `tapo help` | Show usage. |
@@ -162,11 +173,11 @@ REPL commands: `:help`, `:vars`, `:quit`.
 ```
 TAPO/
 ├── tapo                 # runnable launcher (PYTHONPATH=src)
-├── src/tapo/            # lexer, parser, AST, interpreter, objects, builtins, CLI
+├── src/tapo/            # lexer, parser, AST, interpreter, objects, builtins, formatter, CLI
 ├── std/               # .takg library modules
 ├── tests/             # language and standard-library tests
 ├── examples/          # runnable example programs
-├── docs/              # language manual and standard library reference
+├── docs/              # manual, standard library and build notes
 ├── editors/vscode/    # syntax highlighting, snippets and language config
 ├── pyproject.toml
 └── LICENSE
@@ -195,6 +206,12 @@ test("addition", fn() {
 Assertion failures are collected per test; syntax/runtime file errors are
 reported separately. Exit code is non-zero if anything failed.
 
+Formatter regression tests are plain Python:
+
+```bash
+PYTHONPATH=src python3 tests/formatter_test.py
+```
+
 ---
 
 ## Documentation
@@ -202,8 +219,9 @@ reported separately. Exit code is non-zero if anything failed.
 - [Language manual](docs/manual.md) — the full language tour and reference.
 - [Standard library](docs/stdlib.md) — built-in methods, globals and modules.
 - [Extra libraries](docs/libraries.md) — optional functional, string,
-  collection, result, validation and I/O libraries.
+  collection, result, validation, I/O, CSV, path and CLI libraries.
 - [Examples](examples/) — runnable programs.
+- [Building executables](docs/build.md) — macOS, Linux and Windows packaging.
 - [VS Code extension](editors/vscode/README.md) — local syntax support.
 
 ---

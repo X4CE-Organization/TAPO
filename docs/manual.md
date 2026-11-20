@@ -18,12 +18,15 @@ built-in methods, see [the standard library reference](stdlib.md).
 ./tapo -e 'println("hi")'  # evaluate an expression
 ./tapo repl                # interactive session
 ./tapo check program.tapo    # parse only
+./tapo fmt program.tapo      # format in place
+./tapo fmt --check .         # report files that would change
 ./tapo test                # run tests/
 ```
 
 `./tapo` is a launcher that sets `PYTHONPATH=src`. After `pip install -e .`, the
 same commands are available as `tapo`. A program receives its command-line
-arguments in the global list `argv`.
+arguments in the global list `argv`. `tapo fmt` uses two-space indentation,
+normalises continuation lines, and preserves comments and string contents.
 
 TAPO programs use the `.tapo` extension. Reusable library files use `.takg`; all
 files in `std/` follow this convention. An import may spell the extension
@@ -270,6 +273,30 @@ Functions are closures. `return` exits early; `return` with no value returns
 
 `fn` methods are covered in §8.
 
+### Generators
+
+A function that contains `yield` returns a lazy generator instead of running
+its body immediately:
+
+```tapo
+fn count(limit) {
+  var i = 0
+  while i < limit {
+    yield i
+    i += 1
+  }
+}
+
+let numbers = count(3)
+println(numbers.next())   # 0
+println(numbers.next())   # 1
+println(numbers.to_list()) # [2]
+```
+
+Generators work with `for`, and provide `next`, `done?`, `each`, `to_list`,
+`take` and `close`. `close` runs any `finally` blocks in the generator. When a
+generator is exhausted, `next` raises `StopIteration`.
+
 ---
 
 ## 8. Classes and objects
@@ -396,7 +423,37 @@ mixins can use `self` and `super`.
 
 ---
 
-## 10. Pattern matching
+## 10. Enums
+
+`enum` declares an algebraic data type. Each variant becomes a class, available
+both globally and under the enum name:
+
+```tapo
+enum Shape {
+  Circle(radius)
+  Rect(width, height)
+}
+
+enum Color { Red, Green, Blue }
+
+let shape = Circle(2)
+println(shape)                 # Circle(2)
+println(shape == Circle(2))    # true
+
+match shape {
+  Circle(r) => println("circle #{r}"),
+  Rect(w, h) => println("rect #{w}x#{h}")
+}
+```
+
+Variants with fields are constructed positionally or with a no-argument
+constructor when they have no fields (`Red()`). Variant classes compare by
+identity of the variant and equality of their fields. Patterns use the same
+syntax as class patterns: `Circle(r)` or `Color.Red`.
+
+---
+
+## 11. Pattern matching
 
 ```tapo
 let result = match value {
@@ -442,7 +499,7 @@ let Point(x, y) = point
 
 ---
 
-## 11. Pipelines
+## 12. Pipelines
 
 `|>` inserts the left value as the first argument:
 
@@ -465,7 +522,7 @@ A newline before `|>` continues the pipeline.
 
 ---
 
-## 12. Errors
+## 13. Errors
 
 ```tapo
 try {
@@ -495,9 +552,29 @@ raise MyError("custom message")
 
 Error instances expose `message`, `trace`, `file` and `line`.
 
+### Resource management with `with`
+
+`with` guarantees that `close` is called when the block exits, whether it
+returns normally, raises, returns, breaks or continues:
+
+```tapo
+class Timer {
+  fn close() { println("closed") }
+}
+
+with Timer() as timer {
+  println("working")
+}
+
+let value = with Timer() { 42 }   # with is also an expression
+```
+
+The resource must respond to `close`. The optional `as name` binding is a
+constant inside the block.
+
 ---
 
-## 13. Modules
+## 14. Modules
 
 Library modules are `.takg` files. Programs are `.tapo` files and are run directly,
 not imported as libraries. An import may omit the extension; `.takg` is preferred
@@ -561,12 +638,15 @@ println(C.median([3, 1, 2]))
 | `std/result.takg` | Explicit `Result` / `Ok` / `Err` values. |
 | `std/validation.takg` | Predicates and guard helpers. |
 | `std/io.takg` | JSON/JSONL and filesystem conveniences. |
+| `std/csv.takg` | RFC-style CSV parsing/stringifying and map conversion. |
+| `std/path.takg` | Path splitting, extensions, suffixes and filesystem helpers. |
+| `std/cli.takg` | Small command-line flag/option parser. |
 
 See [Extra libraries](libraries.md) for the full API.
 
 ---
 
-## 14. The object protocol
+## 15. The object protocol
 
 These methods are available on every value:
 
@@ -593,7 +673,7 @@ it. Custom truth/equality/printing can be provided with `to_s`, `inspect`,
 
 ---
 
-## 15. Testing
+## 16. Testing
 
 ```tapo
 import "std/test.takg" as T
@@ -612,7 +692,7 @@ assertions raise `AssertionError`. Use `T.assert_close(a, b)` for floats,
 
 ---
 
-## 16. REPL
+## 17. REPL
 
 ```bash
 ./tapo repl
@@ -624,7 +704,7 @@ printed with `inspect`.
 
 ---
 
-## 17. Limits and current behaviour
+## 18. Limits and current behaviour
 
 - Single inheritance; multiple mixins.
 - Dynamic typing with runtime checks.

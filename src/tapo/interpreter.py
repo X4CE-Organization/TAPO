@@ -27,6 +27,7 @@ from .objects import (
     TapoClass,
     TapoDynamicMethod,
     TapoFunction,
+    TapoGenerator,
     TapoInstance,
     TapoMixin,
     TapoModule,
@@ -38,6 +39,19 @@ from .objects import (
 _MISSING = object()
 
 NOARG_GENERIC_PREDICATES = {"nil?"}
+
+
+def contains_yield(node):
+    """True when *node* contains a yield that belongs to this function."""
+    if isinstance(node, A.Yield):
+        return True
+    if isinstance(node, (A.FnDecl, A.Lambda, A.ClassDecl, A.MixinDecl, A.AspectDecl)):
+        return False
+    if isinstance(node, (list, tuple)):
+        return any(contains_yield(item) for item in node)
+    if hasattr(node, "__dict__"):
+        return any(contains_yield(item) for item in vars(node).values())
+    return False
 
 
 class Interpreter:
@@ -182,6 +196,12 @@ class Interpreter:
             self.error("ValueError", "unexpected parameter", node)
         if isinstance(node, A.Lambda):
             return self.make_function(node.name, node.params, node.body, env, node)
+        if isinstance(node, A.With):
+            return self.eval_with(node, env)
+        if isinstance(node, A.EnumDecl):
+            return self.eval_enum(node, env)
+        if isinstance(node, A.Yield):
+            self.error("ValueError", "yield is only valid inside a function", node)
         if isinstance(node, A.If):
             if self.truthy(self.eval(node.cond, env)):
                 return self.eval_block(node.then, Env(env))
@@ -419,6 +439,166 @@ class Interpreter:
         )
 
     # ------------------------------------------------------------------
+    # generators (yield)
+    # ------------------------------------------------------------------
+    def _generator_run(self, fn, args, node=None, self_obj=None,
+                       defining_class=None, method_name=None, display_name=None):
+        """Drive one generator function, suspending at every yield."""
+        if self_obj is None:
+            self_obj = fn.lexical_self
+        if defining_class is None:
+            defining_class = fn.defining_class
+        call_env = Env(fn.closure)
+        if self_obj is not None:
+            call_env.define("self", self_obj, const=True)
+        self.bind_params(fn, args, call_env, node)
+        frame = Frame(self_obj, defining_class, method_name or fn.name)
+        info = (display_name or fn.name, self.current_file, node.line if node is not None else 0)
+        filename = fn.filename
+        self.frames.append(frame)
+        self.call_stack.append(info)
+        if filename:
+            self.file_stack.append(filename)
+
+        def suspend(value):
+            # The generator's frame must not be visible to code that runs
+            # between two yields.  Put it back when the generator resumes.
+            self.frames.pop()
+            self.call_stack.pop()
+            file_popped = False
+            if filename and self.file_stack and self.file_stack[-1] == filename:
+                self.file_stack.pop()
+                file_popped = True
+            try:
+                yield value
+            finally:
+                self.frames.append(frame)
+                self.call_stack.append(info)
+                if file_popped:
+                    self.file_stack.append(filename)
+
+        try:
+            try:
+                result = yield from self.gen_eval(fn.body, call_env, suspend)
+                return result
+            except TapoReturn as ret:
+                return ret.value
+        except TapoException as exc:
+            self.add_note(exc, info[0], node)
+            raise
+        finally:
+            if frame in self.frames:
+                self.frames.remove(frame)
+            if filename:
+                for i in range(len(self.file_stack) - 1, -1, -1):
+                    if self.file_stack[i] == filename:
+                        del self.file_stack[i]
+                        break
+            if info in self.call_stack:
+                for i in range(len(self.call_stack) - 1, -1, -1):
+                    if self.call_stack[i] is info:
+                        del self.call_stack[i]
+                        break
+
+    def gen_eval(self, node, env, suspend):
+        """Evaluate a node with yield support, delegating ordinary nodes."""
+        if isinstance(node, A.Block):
+            result = None
+            for stmt in node.stmts:
+                result = yield from self.gen_eval(stmt, env, suspend)
+            return result
+        if isinstance(node, A.Yield):
+            value = self.eval(node.value, env) if node.value is not None else None
+            yield from suspend(value)
+            return None
+        if isinstance(node, A.If):
+            if self.truthy(self.eval(node.cond, env)):
+                return (yield from self.gen_eval(node.then, Env(env), suspend))
+            if node.otherwise is not None:
+                return (yield from self.gen_eval(node.otherwise, Env(env), suspend))
+            return None
+        if isinstance(node, A.While):
+            while True:
+                cond = self.truthy(self.eval(node.cond, env))
+                if node.is_until:
+                    cond = not cond
+                if not cond:
+                    break
+                try:
+                    yield from self.gen_eval(node.body, Env(env), suspend)
+                except TapoContinue:
+                    continue
+                except TapoBreak:
+                    break
+            return None
+        if isinstance(node, A.For):
+            iterable = self.iter_values(self.eval(node.iterable, env), node)
+            for item in iterable:
+                loop_env = Env(env)
+                self.declare_pattern(node.pattern, item, loop_env, const=False, node=node)
+                try:
+                    yield from self.gen_eval(node.body, loop_env, suspend)
+                except TapoContinue:
+                    continue
+                except TapoBreak:
+                    break
+            return None
+        if isinstance(node, A.Loop):
+            while True:
+                try:
+                    yield from self.gen_eval(node.body, Env(env), suspend)
+                except TapoContinue:
+                    continue
+                except TapoBreak:
+                    break
+            return None
+        if isinstance(node, A.Try):
+            result = None
+            try:
+                try:
+                    result = yield from self.gen_eval(node.body, Env(env), suspend)
+                except TapoException as exc:
+                    if node.catch_body is None:
+                        raise
+                    catch_env = Env(env)
+                    if node.catch_name:
+                        catch_env.define(node.catch_name, exc.value, const=False)
+                    result = yield from self.gen_eval(node.catch_body, catch_env, suspend)
+            finally:
+                if node.finally_body is not None:
+                    yield from self.gen_eval(node.finally_body, Env(env), suspend)
+            return result
+        if isinstance(node, A.With):
+            resource = self.eval(node.resource, env)
+            body_env = Env(env)
+            if node.name is not None:
+                body_env.define(node.name, resource, const=True)
+            if not self.responds_to(resource, "close"):
+                self.error("TypeError", "with resource must respond to close", node)
+            try:
+                return (yield from self.gen_eval(node.body, body_env, suspend))
+            finally:
+                self.call_value(self.get_attr(resource, "close", node), [], node)
+        if isinstance(node, A.Match):
+            subject = self.eval(node.subject, env)
+            for arm in node.arms:
+                arm_env = Env(env)
+                bindings = self.match_pattern(arm.pattern, subject, env)
+                if bindings is None:
+                    continue
+                for name, value in bindings.items():
+                    arm_env.define(name, value, const=False)
+                if arm.guard is not None and not self.truthy(self.eval(arm.guard, arm_env)):
+                    continue
+                return (yield from self.gen_eval(arm.body, arm_env, suspend))
+            self.error(
+                "MatchError",
+                "no pattern matched value %s" % self.inspect(subject),
+                node,
+            )
+        return self.eval(node, env)
+
+    # ------------------------------------------------------------------
     # functions, methods and constructors
     # ------------------------------------------------------------------
     def make_function(self, name, params, body, env, node, is_method=False, defining_class=None):
@@ -436,6 +616,7 @@ class Interpreter:
             lexical_self=lexical_self,
             is_method=is_method,
             line=node.line if node is not None else 0,
+            is_generator=contains_yield(body),
         )
 
     def call_value(self, callee, args, node=None):
@@ -498,6 +679,11 @@ class Interpreter:
             self_obj = fn.lexical_self
         if defining_class is None:
             defining_class = fn.defining_class
+        if getattr(fn, "is_generator", False):
+            return TapoGenerator(
+                self, fn, args, node, self_obj, defining_class,
+                method_name, display_name,
+            )
         call_env = Env(fn.closure)
         if self_obj is not None:
             call_env.define("self", self_obj, const=True)
@@ -711,6 +897,7 @@ class Interpreter:
             lexical_self=None,
             is_method=is_method,
             line=node.line if node is not None else 0,
+            is_generator=contains_yield(body),
         )
 
     def eval_class(self, node, env):
@@ -728,6 +915,41 @@ class Interpreter:
         self.populate_class(klass, node.members, env, node)
         env.define(node.name, klass, const=True)
         return klass
+
+    def eval_enum(self, node, env):
+        base = TapoClass(node.name, self.Object)
+        base.is_enum = True
+        base.module = self.current_file
+        env.define(node.name, base, const=True)
+        seen = set()
+        for variant in node.variants:
+            if variant.name in seen:
+                self.error("ValueError", "duplicate enum variant '%s'" % variant.name, variant)
+            seen.add(variant.name)
+            variant_cls = TapoClass(variant.name, base)
+            variant_cls.is_enum_variant = True
+            variant_cls.enum_parent = base
+            variant_cls.module = self.current_file
+            if len(set(variant.fields)) != len(variant.fields):
+                self.error("ValueError", "duplicate field in enum variant '%s'" % variant.name, variant)
+            variant_cls.fields = [
+                (field, A.Literal(None), env) for field in variant.fields
+            ]
+            base.statics[variant.name] = variant_cls
+            env.define(variant.name, variant_cls, const=True)
+        return base
+
+    def eval_with(self, node, env):
+        resource = self.eval(node.resource, env)
+        body_env = Env(env)
+        if node.name is not None:
+            body_env.define(node.name, resource, const=True)
+        if not self.responds_to(resource, "close"):
+            self.error("TypeError", "with resource must respond to close", node)
+        try:
+            return self.eval_block(node.body, body_env)
+        finally:
+            self.call_value(self.get_attr(resource, "close", node), [], node)
 
     def include_mixin(self, klass, mixin, node):
         for name, fn in mixin.methods.items():
@@ -1009,6 +1231,8 @@ class Interpreter:
         if isinstance(obj, TapoClass):
             owner, fn = obj.find_static(name)
             if fn is not None:
+                if isinstance(fn, TapoClass):
+                    return fn
                 return TapoBoundMethod(obj, name, fn, owner, allow_aspects=False)
             if name == "name":
                 return obj.name
@@ -1605,6 +1829,13 @@ class Interpreter:
     def tapo_equals(self, left, right, node=None):
         if left is right:
             return True
+        if isinstance(left, TapoInstance) and left.klass.is_enum_variant:
+            if not isinstance(right, TapoInstance) or right.klass is not left.klass:
+                return False
+            return all(
+                self.tapo_equals(left.fields.get(field), right.fields.get(field), node)
+                for field in left.klass.field_names()
+            )
         if isinstance(left, TapoInstance):
             owner, fn = left.klass.find_method("==")
             if fn is not None:
@@ -1869,7 +2100,7 @@ class Interpreter:
             return [decl.name]
         if isinstance(decl, A.VarDecl):
             return self.pattern_names(decl.pattern)
-        if isinstance(decl, (A.FnDecl, A.ClassDecl, A.MixinDecl, A.AspectDecl)):
+        if isinstance(decl, (A.FnDecl, A.ClassDecl, A.MixinDecl, A.AspectDecl, A.EnumDecl)):
             return [decl.name]
         return []
 
@@ -1917,6 +2148,8 @@ class Interpreter:
             return self.builtin_classes["Module"]
         if isinstance(value, TapoRange):
             return self.builtin_classes["Range"]
+        if isinstance(value, TapoGenerator):
+            return self.builtin_classes["Generator"]
         if isinstance(value, TapoAspect):
             return self.builtin_classes["Aspect"]
         if isinstance(value, TapoMixin):
@@ -1941,6 +2174,8 @@ class Interpreter:
             return iter([[key, item] for key, item in value.items()])
         if isinstance(value, TapoRange):
             return self.iter_range(value, node)
+        if isinstance(value, TapoGenerator):
+            return iter(value)
         if isinstance(value, TapoInstance):
             if value.klass.find_method("each")[1] is not None:
                 collected = []
@@ -2052,6 +2287,8 @@ class Interpreter:
                 )
                 + "}"
             )
+        if isinstance(value, TapoInstance) and value.klass.is_enum_variant:
+            return self.enum_repr(value)
         if isinstance(value, TapoInstance):
             owner, fn = value.klass.find_method("to_s")
             if fn is not None:
@@ -2084,6 +2321,13 @@ class Interpreter:
         if isinstance(value, TapoMixin):
             return "<mixin %s>" % value.name
         return str(value)
+
+    def enum_repr(self, value):
+        names = value.klass.field_names()
+        parts = [self.inspect(value.fields.get(name)) for name in names]
+        if not parts:
+            return value.klass.name
+        return "%s(%s)" % (value.klass.name, ", ".join(parts))
 
     def range_repr(self, rng):
         return "%s%s%s" % (
@@ -2118,6 +2362,8 @@ class Interpreter:
                 )
             finally:
                 self._inspect_depth -= 1
+        if isinstance(value, TapoInstance) and value.klass.is_enum_variant:
+            return self.enum_repr(value)
         if isinstance(value, TapoInstance):
             owner, fn = value.klass.find_method("inspect")
             if fn is not None:

@@ -1,0 +1,26 @@
+# Generators are lazy: the body runs only as values are requested.
+
+fn count(limit) {
+  var i = 0
+  while i < limit {
+    yield i
+    i += 1
+  }
+}
+
+fn squares(limit) {
+  for n in count(limit) { yield n * n }
+}
+
+println(squares(5).to_list())
+println(squares(10).take(4))
+
+var total = 0
+for value in squares(4) { total += value }
+println(total)
+
+let gen = count(3)
+println(gen.next())
+println(gen.next())
+gen.close()
+println(gen.done?)

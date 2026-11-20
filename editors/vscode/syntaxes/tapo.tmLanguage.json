@@ -3,15 +3,33 @@
   "name": "TAPO",
   "scopeName": "source.tapo",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#declarations" },
-    { "include": "#keywords" },
-    { "include": "#constants" },
-    { "include": "#builtins" },
-    { "include": "#operators" },
-    { "include": "#punctuation" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#builtins"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    }
   ],
   "repository": {
     "comments": {
@@ -21,7 +39,9 @@
           "begin": "#=",
           "end": "=#",
           "patterns": [
-            { "include": "#comments" }
+            {
+              "include": "#comments"
+            }
           ]
         },
         {
@@ -37,8 +57,13 @@
           "begin": "\"\"\"",
           "end": "\"\"\"",
           "patterns": [
-            { "include": "#interpolation" },
-            { "name": "constant.character.escape.tapo", "match": "\\\\." }
+            {
+              "include": "#interpolation"
+            },
+            {
+              "name": "constant.character.escape.tapo",
+              "match": "\\\\."
+            }
           ]
         },
         {
@@ -51,8 +76,13 @@
           "begin": "\"",
           "end": "\"",
           "patterns": [
-            { "include": "#interpolation" },
-            { "name": "constant.character.escape.tapo", "match": "\\\\." }
+            {
+              "include": "#interpolation"
+            },
+            {
+              "name": "constant.character.escape.tapo",
+              "match": "\\\\."
+            }
           ]
         },
         {
@@ -60,7 +90,10 @@
           "begin": "'",
           "end": "'",
           "patterns": [
-            { "name": "constant.character.escape.tapo", "match": "\\\\." }
+            {
+              "name": "constant.character.escape.tapo",
+              "match": "\\\\."
+            }
           ]
         }
       ]
@@ -70,7 +103,9 @@
       "begin": "#\\{",
       "end": "\\}",
       "patterns": [
-        { "include": "source.tapo" }
+        {
+          "include": "source.tapo"
+        }
       ]
     },
     "numbers": {
@@ -91,39 +126,57 @@
           "name": "meta.class.tapo",
           "match": "\\b(class)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
           "captures": {
-            "1": { "name": "storage.type.class.tapo" },
-            "2": { "name": "entity.name.type.class.tapo" }
+            "1": {
+              "name": "storage.type.class.tapo"
+            },
+            "2": {
+              "name": "entity.name.type.class.tapo"
+            }
           }
         },
         {
           "name": "meta.mixin.tapo",
           "match": "\\b(mixin)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
           "captures": {
-            "1": { "name": "storage.type.mixin.tapo" },
-            "2": { "name": "entity.name.type.mixin.tapo" }
+            "1": {
+              "name": "storage.type.mixin.tapo"
+            },
+            "2": {
+              "name": "entity.name.type.mixin.tapo"
+            }
           }
         },
         {
           "name": "meta.aspect.tapo",
           "match": "\\b(aspect)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
           "captures": {
-            "1": { "name": "storage.type.aspect.tapo" },
-            "2": { "name": "entity.name.type.aspect.tapo" }
+            "1": {
+              "name": "storage.type.aspect.tapo"
+            },
+            "2": {
+              "name": "entity.name.type.aspect.tapo"
+            }
           }
         },
         {
           "name": "meta.function.tapo",
           "match": "\\b(fn)\\s+([\\p{L}_][\\p{L}\\p{N}_]*[?!]?|[+\\-*/%<>=!&|^~]+)",
           "captures": {
-            "1": { "name": "storage.type.function.tapo" },
-            "2": { "name": "entity.name.function.tapo" }
+            "1": {
+              "name": "storage.type.function.tapo"
+            },
+            "2": {
+              "name": "entity.name.function.tapo"
+            }
           }
         },
         {
           "name": "meta.function.call.tapo",
           "match": "([\\p{L}_][\\p{L}\\p{N}_]*[?!]?)\\s*(?=\\()",
           "captures": {
-            "1": { "name": "entity.name.function.call.tapo" }
+            "1": {
+              "name": "entity.name.function.call.tapo"
+            }
           }
         }
       ]
@@ -136,7 +189,7 @@
         },
         {
           "name": "keyword.other.tapo",
-          "match": "\\b(class|mixin|aspect|fn|let|var|import|export|as|with|use|static|get|set|self|super|before|after|around|and|or|not|is)\\b"
+          "match": "\\b(class|mixin|aspect|enum|fn|let|var|import|export|as|with|use|static|get|set|self|super|before|after|around|yield|and|or|not|is)\\b"
         }
       ]
     },
@@ -170,9 +223,18 @@
     },
     "punctuation": {
       "patterns": [
-        { "name": "punctuation.separator.tapo", "match": "[,;:]" },
-        { "name": "punctuation.accessor.tapo", "match": "\\." },
-        { "name": "punctuation.section.tapo", "match": "[(){}\\[\\]]" }
+        {
+          "name": "punctuation.separator.tapo",
+          "match": "[,;:]"
+        },
+        {
+          "name": "punctuation.accessor.tapo",
+          "match": "\\."
+        },
+        {
+          "name": "punctuation.section.tapo",
+          "match": "[(){}\\[\\]]"
+        }
       ]
     }
   }

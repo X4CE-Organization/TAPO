@@ -1,0 +1,181 @@
+enum Color { Red, Green, Blue }
+
+enum Shape {
+  Circle(radius)
+  Rect(width, height)
+}
+
+fn shape_label(shape) {
+  match shape {
+    Circle(r) => "circle #{r}",
+    Rect(w, h) => "rect #{w}x#{h}",
+    Shape => "unknown shape",
+    else => "not a shape"
+  }
+}
+
+test("enum construction and equality", fn() {
+  let red = Red()
+  assert(red is Color)
+  assert(red is Red)
+  assert_eq(Color.Red, Red)
+  assert_eq(red, Red())
+  assert_ne(red, Green())
+  assert_eq(Circle(2).radius, 2)
+  assert_eq(Circle(2), Circle(2))
+  assert_ne(Circle(2), Circle(3))
+  assert_eq(Shape.Rect(3, 4).width, 3)
+  assert_eq(Shape.Rect(3, 4).to_s(), "Rect(3, 4)")
+})
+
+test("enum pattern matching", fn() {
+  assert_eq(shape_label(Circle(2)), "circle 2")
+  assert_eq(shape_label(Rect(3, 4)), "rect 3x4")
+  assert_eq(shape_label(nil), "not a shape")
+
+  let color_name = fn(color) {
+    match color {
+      Red => "red",
+        Green => "green",
+        Color.Blue => "blue",
+        else => "other"
+    }
+  }
+  assert_eq(color_name(Red()), "red")
+  assert_eq(color_name(Green()), "green")
+  assert_eq(color_name(Blue()), "blue")
+})
+
+class Resource {
+  var closed = false
+  var closes = 0
+  fn close() {
+    self.closed = true
+    self.closes += 1
+  }
+}
+
+test("with closes a resource", fn() {
+  let resource = Resource()
+  var seen = false
+  with resource as res {
+    assert(not res.closed)
+    seen = true
+  }
+  assert(seen)
+  assert(resource.closed)
+  assert_eq(resource.closes, 1)
+})
+
+test("with closes on error", fn() {
+  let resource = Resource()
+  let error = try {
+    with resource {
+      raise ValueError("inside")
+    }
+  } catch caught {
+    caught
+  }
+  assert_eq(error.message, "inside")
+  assert(resource.closed)
+  assert_eq(resource.closes, 1)
+})
+
+test("with returns its block value", fn() {
+  let resource = Resource()
+  let value = with resource { 40 + 2 }
+  assert_eq(value, 42)
+  assert(resource.closed)
+})
+
+test("with closes on return and break", fn() {
+  let returned = Resource()
+  let fn_with_return = fn() {
+    with returned {
+      return 7
+    }
+  }
+  assert_eq(fn_with_return(), 7)
+  assert(returned.closed)
+
+  let looped = Resource()
+  while true {
+    with looped { break }
+  }
+  assert(looped.closed)
+})
+
+fn count(n) {
+  var i = 0
+  while i < n {
+    yield i
+    i += 1
+  }
+}
+
+test("generators yield lazily", fn() {
+  let gen = count(3)
+  assert(not gen.done?)
+  assert_eq(gen.next(), 0)
+  assert_eq(gen.next(), 1)
+  assert(not gen.done?)
+  assert_eq(gen.next(), 2)
+  assert(not gen.done?)
+  let error = try { gen.next() } catch caught { caught }
+  assert_eq(error.class.name, "StopIteration")
+  assert(gen.done?)
+})
+
+test("generators work in for loops", fn() {
+  var total = 0
+  for value in count(5) { total += value }
+  assert_eq(total, 10)
+
+  let mapped = []
+  for value in count(3) { mapped.push(value * 2) }
+  assert_eq(mapped, [0, 2, 4])
+})
+
+test("generator helpers and methods", fn() {
+  assert_eq(count(4).to_list(), [0, 1, 2, 3])
+  let gen = count(5)
+  assert_eq(gen.take(2), [0, 1])
+  assert_eq(gen.next(), 2)
+
+  class Counter {
+    var start = 0
+    fn up_to(limit) {
+      var i = self.start
+      while i < limit {
+        yield i
+        i += 1
+      }
+    }
+  }
+  let counter = Counter()
+  counter.start = 3
+  assert_eq(counter.up_to(6).to_list(), [3, 4, 5])
+})
+
+test("generators support control flow and finally", fn() {
+  fn selected() {
+    for i in 1..6 {
+      if i.even? { yield i }
+    }
+  }
+  assert_eq(selected().to_list(), [2, 4, 6])
+
+  var cleaned = false
+  fn guarded() {
+    try {
+      yield 1
+      yield 2
+    } finally {
+      cleaned = true
+    }
+  }
+  let gen = guarded()
+  assert_eq(gen.next(), 1)
+  gen.close()
+  assert(cleaned)
+})

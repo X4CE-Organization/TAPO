@@ -215,6 +215,22 @@ class Continue:
 
 
 @dataclass
+class Yield:
+    value: Any = None
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
+class With:
+    resource: Any
+    name: Optional[str]
+    body: Block
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
 class Try:
     body: Block
     catch_name: Optional[str] = None
@@ -300,6 +316,22 @@ class ClassDecl:
     superclass: Any
     mixins: List[Any]
     members: List[Any]
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
+class EnumVariant:
+    name: str
+    fields: List[str]
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
+class EnumDecl:
+    name: str
+    variants: List[Any]
     line: int = 0
     col: int = 0
 

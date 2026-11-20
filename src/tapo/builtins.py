@@ -24,6 +24,7 @@ from .objects import (
     TapoClass,
     TapoDynamicMethod,
     TapoFunction,
+    TapoGenerator,
     TapoInstance,
     TapoMixin,
     TapoModule,
@@ -1569,6 +1570,52 @@ BOOL_METHODS = {
     "to_i": bool_to_i,
 }
 
+def generator_next(interp, gen, args):
+    arity(interp, args, "Generator.next", 0)
+    return gen.next_value(getattr(interp, "_builtin_node", None))
+
+def generator_done(interp, gen, args):
+    arity(interp, args, "Generator.done?", 0)
+    return bool(gen.done)
+
+def generator_each(interp, gen, args):
+    arity(interp, args, "Generator.each", 1)
+    callback = args[0]
+    for value in gen:
+        interp.call_value(callback, [value], getattr(interp, "_builtin_node", None))
+    return None
+
+def generator_to_list(interp, gen, args):
+    arity(interp, args, "Generator.to_list", 0)
+    return list(gen)
+
+def generator_take(interp, gen, args):
+    arity(interp, args, "Generator.take", 1)
+    count = want_int(interp, args[0], "count")
+    if count < 0:
+        fail(interp, "ArgumentError", "count must be non-negative")
+    out = []
+    while len(out) < count:
+        try:
+            out.append(next(gen))
+        except StopIteration:
+            break
+    return out
+
+def generator_close(interp, gen, args):
+    arity(interp, args, "Generator.close", 0)
+    gen.close()
+    return None
+
+GENERATOR_METHODS = {
+    "next": generator_next,
+    "done?": generator_done,
+    "each": generator_each,
+    "to_list": generator_to_list,
+    "take": generator_take,
+    "close": generator_close,
+}
+
 NIL_METHODS = {}
 
 NOARG_PREDICATES.update(
@@ -1588,6 +1635,7 @@ NOARG_PREDICATES.update(
         "any?",
         "all?",
         "none?",
+        "done?",
     }
 )
 
@@ -1609,6 +1657,8 @@ def table_for(value):
         return MAP_METHODS
     if isinstance(value, TapoRange):
         return RANGE_METHODS
+    if isinstance(value, TapoGenerator):
+        return GENERATOR_METHODS
     if isinstance(
         value,
         (TapoFunction, TapoBoundMethod, TapoBuiltin, TapoBoundBuiltin, TapoDynamicMethod, TapoProceed),
@@ -2404,6 +2454,7 @@ def install(interp, env):
     list_class = TapoClass("List", object_class, native=ctor_list, builtin=True)
     map_class = TapoClass("Map", object_class, native=ctor_map, builtin=True)
     range_class = TapoClass("Range", object_class, native=ctor_range, builtin=True)
+    generator_class = TapoClass("Generator", object_class, builtin=True)
     nil_class = TapoClass("Nil", object_class, native=ctor_nil, builtin=True)
     function_class = TapoClass("Function", object_class, builtin=True)
     class_class = TapoClass("Class", object_class, builtin=True)
@@ -2419,6 +2470,7 @@ def install(interp, env):
         "List": list_class,
         "Map": map_class,
         "Range": range_class,
+        "Generator": generator_class,
         "Nil": nil_class,
         "Function": function_class,
         "Class": class_class,

@@ -21,6 +21,7 @@ from .errors import TapoSyntaxError
 
 KEYWORDS = {
     "class",
+    "enum",
     "mixin",
     "aspect",
     "fn",
@@ -50,6 +51,7 @@ KEYWORDS = {
     "catch",
     "finally",
     "raise",
+    "yield",
     "import",
     "export",
     "as",
