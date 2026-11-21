@@ -35,6 +35,7 @@ class TapoClass:
         "is_enum",
         "is_enum_variant",
         "enum_parent",
+        "_method_cache",
     )
 
     def __init__(self, name, superclass=None, native=None, is_error=False, builtin=False):
@@ -54,11 +55,17 @@ class TapoClass:
         self.is_enum = False
         self.is_enum_variant = False
         self.enum_parent = None
+        self._method_cache = {}
 
     def find_method(self, name):
+        cached = self._method_cache.get(name)
+        if cached is not None:
+            return cached
         for klass in self.mro:
             if name in klass.methods:
-                return klass, klass.methods[name]
+                found = (klass, klass.methods[name])
+                self._method_cache[name] = found
+                return found
         return None, None
 
     def find_getter(self, name):
@@ -391,6 +398,7 @@ def make_error_classes():
         ("MatchError", "Error"),
         ("NotImplementedError", "Error"),
         ("FrozenError", "Error"),
+        ("SecurityError", "Error"),
         ("StopIteration", "Error"),
     ]
     for name, parent in hierarchy:

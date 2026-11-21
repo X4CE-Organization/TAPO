@@ -36,7 +36,7 @@ from .objects import (
     TapoRange,
 )
 
-VERSION = "0.0.2"
+VERSION = "0.0.3"
 AUTHOR = "X4CE"
 LICENSE = "MIT"
 
@@ -1803,6 +1803,8 @@ def fn_p(interp, args):
 
 def fn_input(interp, args):
     arity(interp, args, "input", 0, 1)
+    if interp.security.sandbox:
+        interp.security.deny(interp, "input", interp._builtin_node)
     prompt = "" if not args else interp.to_s(args[0])
     if prompt:
         _sys.stdout.write(prompt)
@@ -1931,6 +1933,8 @@ def fn_panic(interp, args):
 
 def fn_exit(interp, args):
     arity(interp, args, "exit", 0, 1)
+    if interp.security.sandbox:
+        interp.security.deny(interp, "exit", interp._builtin_node)
     from .errors import TapoExit
 
     code = 0 if not args else want_int(interp, args[0], "code")
@@ -2166,15 +2170,18 @@ def build_fs(interp):
 
         return TapoBuiltin("FS." + name, method)
 
+    def guard(interp_, path, write=False):
+        return interp_.security.check_path(interp_, path, write=write, node=interp_._builtin_node)
+
     def read(interp_, args):
         arity(interp_, args, "FS.read", 1)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"))
         with open(path, "r", encoding="utf-8") as handle:
             return handle.read()
 
     def write(interp_, args):
         arity(interp_, args, "FS.write", 2)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"), write=True)
         content = want_str(interp_, args[1], "content")
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(content)
@@ -2182,7 +2189,7 @@ def build_fs(interp):
 
     def append(interp_, args):
         arity(interp_, args, "FS.append", 2)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"), write=True)
         content = want_str(interp_, args[1], "content")
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(content)
@@ -2190,24 +2197,27 @@ def build_fs(interp):
 
     def exists(interp_, args):
         arity(interp_, args, "FS.exists?", 1)
-        return os.path.exists(want_str(interp_, args[0], "path"))
+        path = guard(interp_, want_str(interp_, args[0], "path"))
+        return os.path.exists(path)
 
     def is_file(interp_, args):
         arity(interp_, args, "FS.is_file?", 1)
-        return os.path.isfile(want_str(interp_, args[0], "path"))
+        path = guard(interp_, want_str(interp_, args[0], "path"))
+        return os.path.isfile(path)
 
     def is_dir(interp_, args):
         arity(interp_, args, "FS.is_dir?", 1)
-        return os.path.isdir(want_str(interp_, args[0], "path"))
+        path = guard(interp_, want_str(interp_, args[0], "path"))
+        return os.path.isdir(path)
 
     def list_dir(interp_, args):
         arity(interp_, args, "FS.list", 1)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"))
         return sorted(os.listdir(path))
 
     def remove(interp_, args):
         arity(interp_, args, "FS.remove", 1)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"), write=True)
         if os.path.isdir(path) and not os.path.islink(path):
             os.rmdir(path)
         else:
@@ -2216,7 +2226,7 @@ def build_fs(interp):
 
     def mkdir(interp_, args):
         arity(interp_, args, "FS.mkdir", 1, 2)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"), write=True)
         parents = len(args) > 1 and truthy(args[1])
         if parents:
             os.makedirs(path, exist_ok=True)
@@ -2231,16 +2241,18 @@ def build_fs(interp):
 
     def size(interp_, args):
         arity(interp_, args, "FS.size", 1)
-        return os.path.getsize(want_str(interp_, args[0], "path"))
+        path = guard(interp_, want_str(interp_, args[0], "path"))
+        return os.path.getsize(path)
 
     def read_lines(interp_, args):
         arity(interp_, args, "FS.read_lines", 1)
-        with open(want_str(interp_, args[0], "path"), "r", encoding="utf-8") as handle:
+        path = guard(interp_, want_str(interp_, args[0], "path"))
+        with open(path, "r", encoding="utf-8") as handle:
             return handle.read().splitlines()
 
     def write_lines(interp_, args):
         arity(interp_, args, "FS.write_lines", 2)
-        path = want_str(interp_, args[0], "path")
+        path = guard(interp_, want_str(interp_, args[0], "path"), write=True)
         lines = to_list(interp_, args[1])
         with open(path, "w", encoding="utf-8") as handle:
             handle.write("\n".join(interp_.to_s(line) for line in lines))
@@ -2523,6 +2535,8 @@ def build_uuid(interp):
 def build_sys(interp):
     def env(interp_, args):
         arity(interp_, args, "Sys.env", 1, 2)
+        if interp_.security.sandbox:
+            interp_.security.deny(interp_, "sys.env", interp_._builtin_node)
         key = want_str(interp_, args[0], "key")
         if key in os.environ:
             return os.environ[key]
@@ -2534,6 +2548,8 @@ def build_sys(interp):
 
     def chdir(interp_, args):
         arity(interp_, args, "Sys.chdir", 1)
+        if interp_.security.sandbox:
+            interp_.security.deny(interp_, "sys.chdir", interp_._builtin_node)
         os.chdir(want_str(interp_, args[0], "path"))
         return os.getcwd()
 

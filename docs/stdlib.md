@@ -3,7 +3,7 @@
 All library modules use the `.takg` extension. Programs that use them remain
 `.tapo` files.
 
-Version 0.0.2 · © 2026 X4CE · MIT
+Version 0.0.3 · © 2026 X4CE · MIT
 
 This is the reference for TAPO's built-in methods, global functions, modules and
 the TAPO-level library in `std/`.
@@ -358,4 +358,4 @@ See [Extra libraries](libraries.md) for examples and details.
 Built-ins: `RuntimeError`, `ArgumentError`, `TypeError`, `NameError`,
 `AttributeError`, `IndexError`, `KeyError`, `ValueError`, `ZeroDivisionError`,
 `AssertionError`, `ImportError`, `IOError`, `MatchError`,
-`NotImplementedError`, `FrozenError`, `StopIteration`.
+`NotImplementedError`, `FrozenError`, `SecurityError`, `StopIteration`.

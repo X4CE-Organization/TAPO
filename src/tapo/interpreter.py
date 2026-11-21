@@ -17,6 +17,7 @@ from . import ast as A
 from . import builtins as B
 from .environment import Env
 from .errors import TapoBreak, TapoContinue, TapoException, TapoExit, TapoReturn
+from .security import SecurityPolicy
 from .objects import (
     AdviceFn,
     Frame,
@@ -67,6 +68,8 @@ class Interpreter:
         self.argv = list(argv or [])
         self._inspect_depth = 0
         self._builtin_node = None
+        self.security = SecurityPolicy()
+        self.class_registry = []
 
         self.error_classes = make_error_classes()
         self.builtin_classes = {}
@@ -124,6 +127,8 @@ class Interpreter:
                 self.eval(deferred.body, env)
 
     def eval(self, node, env):
+        if self.security.active:
+            self.security.tick(self, node)
         if isinstance(node, A.Block):
             return self.eval_block(node, env)
         if isinstance(node, A.Literal):
@@ -465,6 +470,7 @@ class Interpreter:
         frame = Frame(self_obj, defining_class, method_name or fn.name)
         info = (display_name or fn.name, self.current_file, node.line if node is not None else 0)
         filename = fn.filename
+        self.security.enter_call(self, node)
         self.frames.append(frame)
         self.call_stack.append(info)
         if filename:
@@ -509,6 +515,7 @@ class Interpreter:
                     if self.call_stack[i] is info:
                         del self.call_stack[i]
                         break
+            self.security.leave_call()
 
     def gen_eval(self, node, env, suspend):
         """Evaluate a node with yield support, delegating ordinary nodes."""
@@ -709,6 +716,7 @@ class Interpreter:
         frame = Frame(self_obj, defining_class, method_name or fn.name)
         info = (display_name or fn.name, self.current_file, node.line if node is not None else 0)
         old_file = self.current_file
+        self.security.enter_call(self, node)
         self.frames.append(frame)
         self.call_stack.append(info)
         if fn.filename:
@@ -726,6 +734,7 @@ class Interpreter:
                 self.file_stack.pop()
             self.call_stack.pop()
             self.frames.pop()
+            self.security.leave_call()
 
     def bind_params(self, fn, args, call_env, node):
         index = 0
@@ -923,6 +932,7 @@ class Interpreter:
         if not isinstance(superclass, TapoClass):
             self.error("TypeError", "superclass must be a class", node)
         klass = TapoClass(node.name, superclass)
+        self.class_registry.append(klass)
         klass.is_error = bool(superclass.is_error)
         klass.module = self.current_file
         mixins = [self.eval(m, env) for m in node.mixins]
@@ -980,6 +990,8 @@ class Interpreter:
             klass.statics[name] = fn
         for spec in mixin.fields:
             self.put_field(klass, spec)
+        for cls in self.class_registry:
+            cls._method_cache.clear()
 
     def put_field(self, klass, spec):
         for i, existing in enumerate(klass.fields):
@@ -1186,6 +1198,7 @@ class Interpreter:
             if isinstance(candidate, TapoModule):
                 return candidate
         resolved = self.resolve_module_path(path, node)
+        self.security.check_import(self, resolved, node)
         if resolved in self.module_cache:
             return self.module_cache[resolved]
         if resolved in self.loading_modules:

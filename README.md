@@ -5,7 +5,7 @@ first-class aspects, pattern matching, pipelines, mixins and a batteries-include
 standard library. It runs on Python 3.9+ with **zero third-party dependencies**.
 
 ```
-TAPO 0.0.2  ·  © 2026 X4CE  ·  MIT
+TAPO 0.0.3  ·  © 2026 X4CE  ·  MIT
 ```
 
 TAPO is deliberately readable: the lexer, parser, object model, interpreter and
@@ -148,8 +148,15 @@ match value {
   (`std/csv.takg`), path manipulation (`std/path.takg`), CLI argument parsing
   (`std/cli.takg`), Base64/UUID (`std/base64.takg`, `std/uuid.takg`), INI config
   (`std/ini.takg`), sets (`std/set.takg`) and templates (`std/template.takg`).
+- **Sandboxing**: `--sandbox` capability checks for file reads/writes and
+  imports, plus `--max-steps`, `--max-depth`, `--timeout` and `--audit`.
+- **Static security audit**: `tapo audit` flags dangerous filesystem/process
+  calls, external imports and unbounded loops before execution.
+- **Method cache and benchmarks**: per-class method lookup cache plus `tapo bench`
+  for reproducible micro-benchmarks.
 - **Test runner**: `tapo test`, `test(...)`, assertions and a small stdlib test kit.
-- **REPL and tooling**: interactive REPL, `check`, `-e`, VS Code grammar/snippets.
+- **REPL and tooling**: interactive REPL, `check`, `fmt`, `new`, `audit`, `bench`,
+  `-e`, VS Code grammar/snippets.
 
 ---
 
@@ -164,9 +171,17 @@ match value {
 | `tapo check file` | Parse a `.tapo` program or `.takg` library without executing it. |
 | `tapo fmt [--check] [paths...]` | Format sources in place; `--check` reports files that would change. |
 | `tapo new <name>` | Create a small project scaffold (`src/main.tapo`, `tests/`). |
+| `tapo audit [paths...]` | Static security audit; exits non-zero on findings. |
+| `tapo bench` | Run interpreter micro-benchmarks. |
 | `tapo -e 'code'` | Evaluate a one-liner. |
 | `tapo version` | Show the version banner. |
 | `tapo help` | Show usage. |
+
+Security flags go before the command or file:
+
+```bash
+tapo --sandbox --allow-write ./out --max-steps 200000 --timeout 5 app.tapo
+```
 
 REPL commands: `:help`, `:vars`, `:quit`.
 
@@ -177,7 +192,7 @@ REPL commands: `:help`, `:vars`, `:quit`.
 ```
 TAPO/
 ├── tapo                 # runnable launcher (PYTHONPATH=src)
-├── src/tapo/            # lexer, parser, AST, interpreter, objects, builtins, formatter, CLI
+├── src/tapo/            # lexer, parser, AST, interpreter, objects, security, audit, bench, CLI
 ├── std/               # .takg library modules
 ├── tests/             # language and standard-library tests
 ├── examples/          # runnable example programs
@@ -210,10 +225,11 @@ test("addition", fn() {
 Assertion failures are collected per test; syntax/runtime file errors are
 reported separately. Exit code is non-zero if anything failed.
 
-Formatter regression tests are plain Python:
+Formatter and security regression tests are plain Python:
 
 ```bash
 PYTHONPATH=src python3 tests/formatter_test.py
+PYTHONPATH=src python3 tests/security_test.py
 ```
 
 ---

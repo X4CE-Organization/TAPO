@@ -1,0 +1,15 @@
+mixin ExtraValue {
+  fn value() => 2
+}
+
+class BaseValue {
+  fn value() => 1
+}
+
+class ChildValue < BaseValue {}
+
+test("method cache invalidates after mixin inclusion", fn() {
+  assert_eq(ChildValue().value(), 1)
+  BaseValue.include(ExtraValue)
+  assert_eq(ChildValue().value(), 2)
+})

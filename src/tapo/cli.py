@@ -7,6 +7,8 @@ Usage:
     tapo test [paths...]       run *_test.tapo files
     tapo fmt [paths...]        format .tapo/.takg sources in place
     tapo new <name>            create a small project scaffold
+    tapo audit <paths...>       static security audit
+    tapo bench                 run micro-benchmarks
     tapo check <file>          parse without running (.tapo or .takg)
     tapo -e 'code'             evaluate a one-liner
     tapo version               print version information
@@ -22,6 +24,9 @@ from .errors import TapoException, TapoExit, TapoSyntaxError
 from .interpreter import Interpreter
 from .parser import parse
 from .formatter import discover as discover_sources, format_file
+from .security import SecurityPolicy
+from .audit import audit_file
+from .bench import run_bench
 
 BANNER = "TAPO %s  \u00b7  \u00a9 2026 X4CE  \u00b7  MIT" % __version__
 
@@ -34,12 +39,23 @@ Usage:
   tapo test [paths...]       run test files (default: tests/)
   tapo fmt [--check] [paths...]  format sources in place (default: .)
   tapo new <name>            create a small project scaffold
+  tapo audit [paths...]       static security audit
+  tapo bench                 run micro-benchmarks
   tapo check <file>          parse a .tapo program or .takg library
   tapo -e <code>             evaluate code from the command line
   tapo version               show version information
   tapo help                  show this help
 
 Files: programs use .tapo; reusable libraries use .takg.
+
+Security options (before the command/file):
+  --sandbox                  deny writes, imports and file reads outside roots
+  --allow-read DIR           add a readable directory (repeatable)
+  --allow-write DIR          add a writable directory (repeatable)
+  --max-steps N              abort after N evaluated nodes
+  --max-depth N              abort when call depth exceeds N
+  --timeout SECONDS          abort after wall-clock time
+  --audit                    print sandbox audit events to stderr
 
 Learn more in docs/manual.md.
 """
@@ -87,11 +103,92 @@ def print_syntax_error(exc, color=False):
     sys.stderr.write(exc.render(color=color and sys.stderr.isatty()) + "\n")
 
 
-def cmd_run(path, args, interp=None):
+def _add_value_option(policy, name, value):
+    if name == "--max-steps":
+        try:
+            policy.max_steps = int(value)
+        except ValueError:
+            return "max-steps must be an integer"
+    elif name == "--max-depth":
+        try:
+            policy.max_depth = int(value)
+        except ValueError:
+            return "max-depth must be an integer"
+    elif name == "--timeout":
+        try:
+            policy.timeout = float(value)
+        except ValueError:
+            return "timeout must be a number"
+    elif name == "--allow-read":
+        policy.add_read_root(value)
+    elif name == "--allow-write":
+        policy.add_write_root(value)
+    return None
+
+
+def parse_global_options(argv):
+    """Consume leading security options, returning (policy, remaining, error)."""
+    policy = SecurityPolicy()
+    i = 0
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--":
+            i += 1
+            break
+        if arg in ("--sandbox", "--safe"):
+            policy.sandbox = True
+            i += 1
+            continue
+        if arg == "--audit":
+            policy.audit = True
+            i += 1
+            continue
+        key, sep, value = arg.partition("=")
+        if key in ("--max-steps", "--max-depth", "--timeout", "--allow-read", "--allow-write"):
+            if not sep:
+                if i + 1 >= len(argv):
+                    return policy.refresh(), argv[i:], "%s needs a value" % key
+                value = argv[i + 1]
+                i += 2
+            else:
+                i += 1
+            error = _add_value_option(policy, key, value)
+            if error:
+                return policy.refresh(), argv[i:], error
+            continue
+        if arg.startswith("-"):
+            break
+        break
+    return policy.refresh(), argv[i:], None
+
+
+def _prepare_policy(policy, interp, script_path=None):
+    if policy.sandbox:
+        policy.add_read_root(os.getcwd())
+        try:
+            policy.add_read_root(interp.std_dir())
+        except Exception:
+            pass
+        if script_path:
+            policy.add_read_root(os.path.dirname(os.path.abspath(script_path)))
+    policy.refresh()
+    return policy
+
+
+def _report_audit(policy):
+    if not policy.audit:
+        return
+    for line in policy.audit_lines():
+        sys.stderr.write("audit: %s\n" % line)
+
+
+def cmd_run(path, args, interp=None, policy=None):
     if not os.path.exists(path):
         sys.stderr.write("tapo: file not found: %s\n" % path)
         return 2
     interp = interp or Interpreter(argv=args)
+    policy = policy or SecurityPolicy()
+    interp.security = _prepare_policy(policy, interp, path)
     try:
         source = _read(path)
         interp.run_source(source, path)
@@ -106,7 +203,61 @@ def cmd_run(path, args, interp=None):
     except KeyboardInterrupt:
         sys.stderr.write("\ninterrupted\n")
         return 130
+    finally:
+        _report_audit(interp.security)
     return 0
+
+
+def cmd_eval(code, args, policy=None):
+    interp = Interpreter(argv=args)
+    interp.security = _prepare_policy(policy or SecurityPolicy(), interp)
+    try:
+        value, _ = interp.run_source(code, "<command>")
+    except TapoSyntaxError as exc:
+        print_syntax_error(exc, color=True)
+        return 1
+    except TapoException as exc:
+        print_exception(interp, exc)
+        return 1
+    except TapoExit as exc:
+        return exc.code
+    finally:
+        _report_audit(interp.security)
+    if value is not None:
+        print(interp.inspect(value))
+    return 0
+
+
+def cmd_audit(argv):
+    paths = argv or ["."]
+    files = list(discover_sources(paths, extensions=(".tapo", ".takg")))
+    if not files:
+        sys.stderr.write("tapo: no sources found\n")
+        return 2
+    total = 0
+    for path in files:
+        try:
+            findings = audit_file(path)
+        except TapoSyntaxError as exc:
+            print_syntax_error(exc, color=True)
+            total += 1
+            continue
+        except OSError as exc:
+            sys.stderr.write("tapo: cannot audit %s: %s\n" % (path, exc))
+            total += 1
+            continue
+        for severity, line, message in findings:
+            print("%s:%s: %s: %s" % (path, line, severity, message))
+            total += 1
+    if total:
+        print("%d finding(s)" % total)
+        return 1
+    print("no security findings")
+    return 0
+
+
+def cmd_bench(argv):
+    return run_bench()
 
 
 def cmd_new(argv):
@@ -348,6 +499,10 @@ def cmd_repl(argv):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
+    policy, argv, option_error = parse_global_options(argv)
+    if option_error:
+        sys.stderr.write("tapo: %s\n" % option_error)
+        return 2
     if not argv:
         if sys.stdin.isatty():
             return cmd_repl([])
@@ -363,16 +518,26 @@ def main(argv=None):
     if first == "repl":
         return cmd_repl(argv[1:])
     if first == "run":
-        if len(argv) < 2:
+        extra, rest, error = parse_global_options(argv[1:])
+        if error:
+            sys.stderr.write("tapo: %s\n" % error)
+            return 2
+        if extra.active or extra.sandbox or extra.audit:
+            policy = extra
+        if not rest:
             sys.stderr.write("tapo: run needs a file\n")
             return 2
-        return cmd_run(argv[1], argv[2:])
+        return cmd_run(rest[0], rest[1:], policy=policy)
     if first == "test":
         return cmd_test(argv[1:])
     if first == "fmt":
         return cmd_fmt(argv[1:])
     if first == "new":
         return cmd_new(argv[1:])
+    if first == "audit":
+        return cmd_audit(argv[1:])
+    if first == "bench":
+        return cmd_bench(argv[1:])
     if first == "check":
         if len(argv) < 2:
             sys.stderr.write("tapo: check needs a file\n")
@@ -382,24 +547,11 @@ def main(argv=None):
         if len(argv) < 2:
             sys.stderr.write("tapo: -e needs code\n")
             return 2
-        interp = Interpreter(argv=argv[2:])
-        try:
-            value, _ = interp.run_source(argv[1], "<command>")
-        except TapoSyntaxError as exc:
-            print_syntax_error(exc, color=True)
-            return 1
-        except TapoException as exc:
-            print_exception(interp, exc)
-            return 1
-        except TapoExit as exc:
-            return exc.code
-        if value is not None:
-            print(interp.inspect(value))
-        return 0
+        return cmd_eval(argv[1], argv[2:], policy)
     if first.startswith("-"):
         sys.stderr.write("tapo: unknown option %s\n" % first)
         return 2
-    return cmd_run(first, argv[1:])
+    return cmd_run(first, argv[1:], policy=policy)
 
 
 if __name__ == "__main__":

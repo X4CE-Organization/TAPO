@@ -1,0 +1,5 @@
+# Static audit fixture: these calls are intentionally risky.
+fs.write("out.txt", "data")
+input("name? ")
+sys.chdir("/tmp")
+while true { break }

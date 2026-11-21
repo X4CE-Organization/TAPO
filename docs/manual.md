@@ -1,6 +1,6 @@
 # The TAPO Language Manual
 
-Version 0.0.2 · © 2026 X4CE · MIT
+Version 0.0.3 · © 2026 X4CE · MIT
 
 TAPO is an expression-oriented, dynamically typed, object-oriented language. It is
 implemented as a compact tree-walking interpreter in Python and ships with its
@@ -21,6 +21,8 @@ built-in methods, see [the standard library reference](stdlib.md).
 ./tapo fmt program.tapo      # format in place
 ./tapo fmt --check .         # report files that would change
 ./tapo new demo              # scaffold a new project
+./tapo audit src/            # static security audit
+./tapo bench                 # micro-benchmarks
 ./tapo test                # run tests/
 ```
 
@@ -561,7 +563,8 @@ The built-in hierarchy includes:
 `Error`, `RuntimeError`, `ArgumentError`, `TypeError`, `NameError`,
 `AttributeError`, `IndexError`, `KeyError`, `ValueError`,
 `ZeroDivisionError`, `AssertionError`, `ImportError`, `IOError`,
-`MatchError`, `NotImplementedError`, `FrozenError`.
+`MatchError`, `NotImplementedError`, `FrozenError`, `SecurityError`,
+`StopIteration`.
 
 Custom errors:
 
@@ -742,3 +745,43 @@ printed with `inspect`.
 - `-x.method()` binds as `-(x.method())`; parenthesise negative receivers.
 - Range patterns require numeric literal bounds.
 - `defer` is block-scoped and runs in LIFO order.
+
+---
+
+## 19. Security, limits and performance
+
+### Sandbox
+
+Run untrusted programs with a capability policy:
+
+```bash
+tapo --sandbox --allow-read ./data --allow-write ./out app.tapo
+tapo --sandbox --max-steps 200000 --timeout 5 --max-depth 64 --audit app.tapo
+```
+
+`--sandbox` limits file reads to the current directory, the script directory,
+the standard library and any `--allow-read` roots. Writes require
+`--allow-write`. Imports outside those roots and `input`, `exit`, `sys.exit`,
+`sys.env` and `sys.chdir` are denied. Violations raise `SecurityError`.
+
+`--max-steps`, `--max-depth` and `--timeout` bound runaway evaluation. These are
+interpreter-level limits, not an OS memory sandbox.
+
+### Static audit
+
+`tapo audit [paths...]` parses sources and reports dangerous filesystem/process
+calls, external imports and obvious unbounded loops. It exits non-zero when it
+finds anything.
+
+### Performance
+
+TAPO is a tree-walking interpreter with a per-class method lookup cache. Measure
+it with `tapo bench`:
+
+```text
+case                   time      units      units/s
+arithmetic          695.5 ms     100000       143782
+method calls        375.5 ms      30000        79900
+```
+
+When no security limit is active the step accounting has no cost.

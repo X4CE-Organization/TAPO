@@ -1,4 +1,4 @@
-# New 0.0.2 libraries: encoding, UUID, INI, sets and templates.
+# New 0.0.3 libraries: encoding, UUID, INI, sets and templates.
 
 import "std/base64.takg" as B
 import "std/uuid.takg" as U
@@ -12,7 +12,7 @@ println(B.decode("VEFQTyDkvaDlpb0="))
 let id = U.new()
 println("uuid valid: #{U.valid?(id)}")
 
-let config = I.parse("[app]\nname = TAPO\nversion = 0.0.2\n")
+let config = I.parse("[app]\nname = TAPO\nversion = 0.0.3\n")
 println(config["app"]["name"])
 
 let values = S.new([1, 2, 2, 3])
