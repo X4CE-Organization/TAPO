@@ -5,7 +5,7 @@ first-class aspects, pattern matching, pipelines, mixins and a batteries-include
 standard library. It runs on Python 3.9+ with **zero third-party dependencies**.
 
 ```
-TAPO 0.0.1  ·  © 2026 X4CE  ·  MIT
+TAPO 0.0.2  ·  © 2026 X4CE  ·  MIT
 ```
 
 TAPO is deliberately readable: the lexer, parser, object model, interpreter and
@@ -123,12 +123,14 @@ match value {
   operator overloading, index protocol, `method_missing`, callable objects.
 - **AOP**: `before` / `after` / `around` advice, wildcard selectors, `proceed`,
   aspect application at class definition or at runtime.
-- **Pattern matching**: literals, lists, maps, class destructuring, guards,
-  or-patterns, `as` bindings, rest patterns.
+- **Pattern matching**: literals, numeric ranges (`1..5`, `6...9`), lists, maps,
+  class destructuring, guards, or-patterns, `as` bindings, rest patterns.
 - **Algebraic enums**: `enum Shape { Circle(r), Rect(w, h) }`; variants are
   classes and participate in pattern matching.
 - **Generators**: `yield` produces lazy sequences with `next`, `to_list`,
   `take`, `for` and automatic cleanup via `close`.
+- **Deferred cleanup**: `defer { ... }` runs at block exit in LIFO order, on
+  normal completion, `return`, `break` and errors.
 - **Resource management**: `with resource as name { ... }` always calls
   `close`, including on errors, returns and breaks.
 - **Formatter**: `tapo fmt` normalises indentation and continuation lines while
@@ -138,13 +140,14 @@ match value {
   built-in modules, circular-import detection.
 - **Errors**: exception hierarchy, `try`/`catch`/`finally`, `raise`, source traces.
 - **Rich built-ins**: strings, lists, maps, ranges, math, JSON, filesystem,
-  time, regex, random, system info.
+  time, regex, random, system info, Base64/hex/URL encoding, hashing and UUIDs.
 - **Extra libraries**: independent, optional `.takg` libraries for functional
   helpers (`std/functional.takg`), strings (`std/strings.takg`), collection extras
   (`std/collections.takg`), `Result` (`std/result.takg`), validation
   (`std/validation.takg`), JSON/JSONL/filesystem I/O (`std/io.takg`), CSV
-  (`std/csv.takg`), path manipulation (`std/path.takg`) and CLI argument parsing
-  (`std/cli.takg`).
+  (`std/csv.takg`), path manipulation (`std/path.takg`), CLI argument parsing
+  (`std/cli.takg`), Base64/UUID (`std/base64.takg`, `std/uuid.takg`), INI config
+  (`std/ini.takg`), sets (`std/set.takg`) and templates (`std/template.takg`).
 - **Test runner**: `tapo test`, `test(...)`, assertions and a small stdlib test kit.
 - **REPL and tooling**: interactive REPL, `check`, `-e`, VS Code grammar/snippets.
 
@@ -160,6 +163,7 @@ match value {
 | `tapo test [paths...]` | Run `*_test.tapo` files (default `tests/`). |
 | `tapo check file` | Parse a `.tapo` program or `.takg` library without executing it. |
 | `tapo fmt [--check] [paths...]` | Format sources in place; `--check` reports files that would change. |
+| `tapo new <name>` | Create a small project scaffold (`src/main.tapo`, `tests/`). |
 | `tapo -e 'code'` | Evaluate a one-liner. |
 | `tapo version` | Show the version banner. |
 | `tapo help` | Show usage. |

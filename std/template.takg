@@ -1,0 +1,28 @@
+# Minimal mustache-style templates: {{name}} placeholders in a map.
+
+fn render(template, data) {
+  var output = ""
+  var rest = template
+  while true {
+    let start = rest.index_of("{{")
+    if start == nil {
+      output += rest
+      break
+    }
+    let tail = rest.slice(start + 2, rest.size - start - 2)
+    let end = tail.index_of("}}")
+    if end == nil {
+      output += rest
+      break
+    }
+    output += rest.slice(0, start)
+    let key = tail.slice(0, end).strip()
+    if data.has_key?(key) {
+      output += data[key].to_s()
+    }
+    rest = tail.slice(end + 2, tail.size - end - 2)
+  }
+  output
+}
+
+fn render_map(template, records) => records.map(fn(record) => render(template, record))

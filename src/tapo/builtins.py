@@ -7,7 +7,9 @@ global environment.
 
 from __future__ import annotations
 
+import base64 as _base64
 import functools
+import hashlib as _hashlib
 import json as _json
 import math as _math
 import os
@@ -15,6 +17,8 @@ import random as _random
 import re as _re
 import sys as _sys
 import time as _time
+import urllib.parse as _urlparse
+import uuid as _uuid
 
 from .objects import (
     TapoAspect,
@@ -32,7 +36,7 @@ from .objects import (
     TapoRange,
 )
 
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 AUTHOR = "X4CE"
 LICENSE = "MIT"
 
@@ -2406,6 +2410,116 @@ def build_random(interp):
     )
 
 
+def build_encoding(interp):
+    def encode_text(name, fn):
+        def method(interp_, args):
+            arity(interp_, args, name, 1)
+            text = want_str(interp_, args[0], "text")
+            try:
+                return fn(text)
+            except Exception as exc:
+                fail(interp_, "ValueError", "%s: %s" % (name, exc))
+        return TapoBuiltin(name, method)
+
+    attrs = {
+        "base64_encode": encode_text(
+            "Encoding.base64_encode",
+            lambda s: _base64.b64encode(s.encode("utf-8")).decode("ascii"),
+        ),
+        "base64_decode": encode_text(
+            "Encoding.base64_decode",
+            lambda s: _base64.b64decode(s.encode("ascii"), validate=True).decode("utf-8"),
+        ),
+        "base64url_encode": encode_text(
+            "Encoding.base64url_encode",
+            lambda s: _base64.urlsafe_b64encode(s.encode("utf-8")).decode("ascii"),
+        ),
+        "base64url_decode": encode_text(
+            "Encoding.base64url_decode",
+            lambda s: _base64.urlsafe_b64decode(s.encode("ascii")).decode("utf-8"),
+        ),
+        "hex_encode": encode_text(
+            "Encoding.hex_encode",
+            lambda s: s.encode("utf-8").hex(),
+        ),
+        "hex_decode": encode_text(
+            "Encoding.hex_decode",
+            lambda s: bytes.fromhex(s).decode("utf-8"),
+        ),
+        "url_encode": encode_text(
+            "Encoding.url_encode",
+            lambda s: _urlparse.quote_plus(s, safe=""),
+        ),
+        "url_decode": encode_text(
+            "Encoding.url_decode",
+            lambda s: _urlparse.unquote_plus(s),
+        ),
+    }
+    return make_module("encoding", attrs)
+
+
+def build_hash(interp):
+    def digest(name, algorithm):
+        def method(interp_, args):
+            arity(interp_, args, name, 1)
+            text = want_str(interp_, args[0], "text")
+            return _hashlib.new(algorithm, text.encode("utf-8")).hexdigest()
+        return TapoBuiltin(name, method)
+
+    def hmac_sha256(interp_, args):
+        arity(interp_, args, "Hash.hmac_sha256", 2)
+        key = want_str(interp_, args[0], "key")
+        text = want_str(interp_, args[1], "text")
+        import hmac
+        return hmac.new(key.encode("utf-8"), text.encode("utf-8"), _hashlib.sha256).hexdigest()
+
+    return make_module("hash", {
+        "md5": digest("Hash.md5", "md5"),
+        "sha1": digest("Hash.sha1", "sha1"),
+        "sha256": digest("Hash.sha256", "sha256"),
+        "hmac_sha256": TapoBuiltin("Hash.hmac_sha256", hmac_sha256),
+    })
+
+
+def build_uuid(interp):
+    def v4(interp_, args):
+        arity(interp_, args, "Uuid.v4", 0)
+        return str(_uuid.uuid4())
+
+    def nil(interp_, args):
+        arity(interp_, args, "Uuid.nil", 0)
+        return str(_uuid.UUID(int=0))
+
+    def valid(interp_, args):
+        arity(interp_, args, "Uuid.valid?", 1)
+        try:
+            _uuid.UUID(want_str(interp_, args[0], "value"))
+            return True
+        except (ValueError, AttributeError):
+            return False
+
+    def v5(interp_, args):
+        arity(interp_, args, "Uuid.v5", 2)
+        namespace = want_str(interp_, args[0], "namespace")
+        name = want_str(interp_, args[1], "name")
+        try:
+            ns = _uuid.UUID(namespace)
+            return str(_uuid.uuid5(ns, name))
+        except (ValueError, AttributeError) as exc:
+            fail(interp_, "ValueError", "invalid UUID namespace: %s" % exc)
+
+    return make_module("uuidgen", {
+        "v4": TapoBuiltin("Uuid.v4", v4),
+        "v5": TapoBuiltin("Uuid.v5", v5),
+        "nil": TapoBuiltin("Uuid.nil", nil),
+        "valid?": TapoBuiltin("Uuid.valid?", valid),
+        "NAMESPACE_DNS": str(_uuid.NAMESPACE_DNS),
+        "NAMESPACE_URL": str(_uuid.NAMESPACE_URL),
+        "NAMESPACE_OID": str(_uuid.NAMESPACE_OID),
+        "NAMESPACE_X500": str(_uuid.NAMESPACE_X500),
+    })
+
+
 def build_sys(interp):
     def env(interp_, args):
         arity(interp_, args, "Sys.env", 1, 2)
@@ -2533,3 +2647,6 @@ def install(interp, env):
     env.define("regex", build_regex(interp), const=True)
     env.define("random", build_random(interp), const=True)
     env.define("sys", build_sys(interp), const=True)
+    env.define("encoding", build_encoding(interp), const=True)
+    env.define("hash", build_hash(interp), const=True)
+    env.define("uuidgen", build_uuid(interp), const=True)

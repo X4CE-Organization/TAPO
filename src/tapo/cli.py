@@ -6,6 +6,7 @@ Usage:
     tapo repl                  interactive session
     tapo test [paths...]       run *_test.tapo files
     tapo fmt [paths...]        format .tapo/.takg sources in place
+    tapo new <name>            create a small project scaffold
     tapo check <file>          parse without running (.tapo or .takg)
     tapo -e 'code'             evaluate a one-liner
     tapo version               print version information
@@ -32,6 +33,7 @@ Usage:
   tapo repl                  start an interactive session
   tapo test [paths...]       run test files (default: tests/)
   tapo fmt [--check] [paths...]  format sources in place (default: .)
+  tapo new <name>            create a small project scaffold
   tapo check <file>          parse a .tapo program or .takg library
   tapo -e <code>             evaluate code from the command line
   tapo version               show version information
@@ -104,6 +106,42 @@ def cmd_run(path, args, interp=None):
     except KeyboardInterrupt:
         sys.stderr.write("\ninterrupted\n")
         return 130
+    return 0
+
+
+def cmd_new(argv):
+    if not argv:
+        sys.stderr.write("tapo: new needs a project name\n")
+        return 2
+    if len(argv) > 1:
+        sys.stderr.write("tapo: new takes exactly one project name\n")
+        return 2
+    name = argv[0]
+    target = os.path.abspath(name)
+    if os.path.exists(target):
+        sys.stderr.write("tapo: target already exists: %s\n" % target)
+        return 2
+    base = os.path.basename(target.rstrip(os.sep)) or "app"
+    try:
+        os.makedirs(os.path.join(target, "src"))
+        os.makedirs(os.path.join(target, "tests"))
+        with open(os.path.join(target, "src", "main.tapo"), "w", encoding="utf-8") as handle:
+            handle.write('println("Hello from %s!")\n' % base)
+        with open(os.path.join(target, "tests", "main_test.tapo"), "w", encoding="utf-8") as handle:
+            handle.write('test("%s starts", fn() {\n  assert_eq(1 + 1, 2)\n})\n' % base)
+        with open(os.path.join(target, "README.md"), "w", encoding="utf-8") as handle:
+            handle.write(
+                "# %s\n\nA TAPO project.\n\n"
+                "```bash\ntapo src/main.tapo\ntapo test tests\n```\n" % base
+            )
+        with open(os.path.join(target, ".gitignore"), "w", encoding="utf-8") as handle:
+            handle.write("__pycache__/\n*.py[cod]\ndist/\nbuild/\n")
+    except OSError as exc:
+        sys.stderr.write("tapo: cannot create project: %s\n" % exc)
+        return 2
+    print("created %s" % target)
+    print("  tapo %s/src/main.tapo" % base)
+    print("  tapo test %s/tests" % base)
     return 0
 
 
@@ -333,6 +371,8 @@ def main(argv=None):
         return cmd_test(argv[1:])
     if first == "fmt":
         return cmd_fmt(argv[1:])
+    if first == "new":
+        return cmd_new(argv[1:])
     if first == "check":
         if len(argv) < 2:
             sys.stderr.write("tapo: check needs a file\n")

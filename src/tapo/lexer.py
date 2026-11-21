@@ -39,6 +39,7 @@ KEYWORDS = {
     "return",
     "break",
     "continue",
+    "defer",
     "true",
     "false",
     "nil",

@@ -1,0 +1,14 @@
+# UUID helpers (v4 and v5).
+
+import "uuidgen" as U
+
+fn new() => U.v4()
+fn v4() => U.v4()
+fn v5(namespace, name) => U.v5(namespace, name)
+fn nil_value() => U.nil()
+fn valid?(value) => U.valid?(value)
+
+let NAMESPACE_DNS = U.NAMESPACE_DNS
+let NAMESPACE_URL = U.NAMESPACE_URL
+let NAMESPACE_OID = U.NAMESPACE_OID
+let NAMESPACE_X500 = U.NAMESPACE_X500

@@ -2,7 +2,7 @@
   "name": "tapo-language",
   "displayName": "TAPO",
   "description": "Syntax highlighting, snippets and language configuration for the TAPO programming language",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "x4ce",
   "license": "MIT",
   "engines": {

@@ -235,6 +235,10 @@ class Parser:
             if kw == "continue":
                 self.advance()
                 return A.Continue(tok.line, tok.col)
+            if kw == "defer":
+                self.advance()
+                body = self.parse_block()
+                return A.Defer(body, tok.line, tok.col)
             if kw == "raise":
                 self.advance()
                 value = self.parse_expression(0)
@@ -288,6 +292,11 @@ class Parser:
         decls = []
         while True:
             pattern = self.parse_pattern()
+            # A bare uppercase name in a declaration is a binding, not a
+            # zero-argument class pattern.  `let Point(x, y) = ...` still
+            # destructures because it carries arguments.
+            if isinstance(pattern, A.PClass) and not pattern.args and not pattern.kwargs:
+                pattern = A.PVar(pattern.name, pattern.line, pattern.col)
             value = None
             if self.match_op("="):
                 value = self.parse_expression(0)
@@ -984,6 +993,12 @@ class Parser:
         tok = self.current
         if tok.type == "NUMBER":
             self.advance()
+            if self.check_op("..") or self.check_op("..."):
+                op = self.advance().value
+                if self.current.type != "NUMBER":
+                    self.error("expected a number after range operator")
+                end = self.advance()
+                return A.PRange(tok.value, end.value, op == "..", tok.line, tok.col)
             return A.PLiteral(tok.value, tok.line, tok.col)
         if tok.type == "STRING":
             self.advance()

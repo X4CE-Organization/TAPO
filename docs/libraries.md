@@ -23,6 +23,11 @@ println(C.median([3, 1, 2]))         # 2
 | `std/csv.takg` | CSV parsing/stringifying and map conversion. |
 | `std/path.takg` | Path components, suffixes and filesystem helpers. |
 | `std/cli.takg` | Command-line flag and option parsing. |
+| `std/base64.takg` | Base64/base64url, hex and URL encoding. |
+| `std/uuid.takg` | UUID v4/v5 generation and validation. |
+| `std/ini.takg` | INI config parsing and serialization. |
+| `std/set.takg` | List-backed value set operations. |
+| `std/template.takg` | Minimal `{{name}}` template rendering. |
 
 Every library is optional. Import only the ones a file needs.
 
@@ -293,6 +298,74 @@ println(cli.option(args, "output", "out.txt"))
 
 ---
 
+## std/base64.takg
+
+UTF-8 aware encoding helpers. `url_encode`/`url_decode` are Base64URL; use
+`url_quote`/`url_unquote` for percent-encoding.
+
+| Function | Meaning |
+| --- | --- |
+| `encode(text)` / `decode(text)` | Base64. |
+| `url_encode(text)` / `url_decode(text)` | Base64URL. |
+| `hex_encode(text)` / `hex_decode(text)` | Hexadecimal UTF-8 bytes. |
+| `url_quote(text)` / `url_unquote(text)` | Percent-encoded query text. |
+
+```tapo
+import "std/base64.takg" as B
+assert_eq(B.decode(B.encode("TAPO")), "TAPO")
+```
+
+---
+
+## std/uuid.takg
+
+| Function | Meaning |
+| --- | --- |
+| `new()` / `v4()` | Random UUID v4 string. |
+| `v5(namespace, name)` | Deterministic UUID v5. |
+| `nil_value()` | All-zero UUID. |
+| `valid?(text)` | Whether text is a valid UUID. |
+| `NAMESPACE_DNS`, `NAMESPACE_URL`, `NAMESPACE_OID`, `NAMESPACE_X500` | Standard v5 namespaces. |
+
+---
+
+## std/ini.takg
+
+| Function | Meaning |
+| --- | --- |
+| `parse(text)` | Parse INI text into a map; sections become nested maps. |
+| `stringify(data)` | Serialize a map; nested maps become sections. |
+| `load(path)` / `save(path, data)` | Read/write an INI file. |
+
+Keys outside any section live at the top level. Lines starting with `#` or `;`
+are ignored; a quoted value has one pair of surrounding quotes removed.
+
+---
+
+## std/set.takg
+
+`Set` is a list-backed value set (equality follows TAPO `==`).
+
+| Member | Meaning |
+| --- | --- |
+| `new(items = [])`, `from_list(items)` | Construct a set. |
+| `add(value)` / `remove(value)` | Mutate; return the set. |
+| `contains?(value)`, `size()`, `empty?()` | Queries. |
+| `union(other)`, `intersection(other)`, `difference(other)` | New sets. |
+| `is_subset?(other)` | Subset test. |
+| `to_list()`, `each(f)`, `map(f)`, `filter(f)` | Iteration and conversion. |
+
+---
+
+## std/template.takg
+
+| Function | Meaning |
+| --- | --- |
+| `render(template, data)` | Replace `{{key}}` with `data[key]`; missing keys become empty. |
+| `render_map(template, records)` | Render one string per record. |
+
+---
+
 ## Notes and limitations
 
 - These libraries are written in TAPO; `fn` is a keyword, so callback parameters are named `f`
@@ -308,9 +381,10 @@ println(cli.option(args, "output", "out.txt"))
 
 ## Tests
 
-The extra libraries are covered by `tests/extras_test.tapo` and
-`tests/libraries_extra_test.tapo` (test programs remain `.tapo`):
+The extra libraries are covered by `tests/extras_test.tapo`,
+`tests/libraries_extra_test.tapo` and `tests/v002_test.tapo` (test programs
+remain `.tapo`):
 
 ```bash
-./tapo test tests/extras_test.tapo tests/libraries_extra_test.tapo
+./tapo test tests/extras_test.tapo tests/libraries_extra_test.tapo tests/v002_test.tapo
 ```

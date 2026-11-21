@@ -7,7 +7,7 @@ Syntax highlighting, snippets and language configuration for the TAPO language.
 Copy this folder into your VS Code extensions directory, for example:
 
 ```bash
-cp -R editors/vscode ~/.vscode/extensions/tapo-language-0.0.1
+cp -R editors/vscode ~/.vscode/extensions/tapo-language-0.0.2
 ```
 
 Then reload VS Code and open any `.tapo` program or `.takg` library file. The extension contributes:
@@ -25,7 +25,7 @@ If you have `vsce` installed:
 ```bash
 cd editors/vscode
 vsce package
-code --install-extension tapo-language-0.0.1.vsix
+code --install-extension tapo-language-0.0.2.vsix
 ```
 
 MIT © 2026 X4CE.

@@ -3,7 +3,7 @@
 All library modules use the `.takg` extension. Programs that use them remain
 `.tapo` files.
 
-Version 0.0.1 · © 2026 X4CE · MIT
+Version 0.0.2 · © 2026 X4CE · MIT
 
 This is the reference for TAPO's built-in methods, global functions, modules and
 the TAPO-level library in `std/`.
@@ -270,6 +270,30 @@ OS errors are reported as TAPO `IOError`.
 
 `seed(n)`, `random()`, `int(min, max)`, `choice(list)`, `shuffle(list)`,
 `sample(list, n)`.
+
+### `encoding`
+
+Base64, Base64URL, hex and URL percent-encoding for UTF-8 strings.
+
+| Function | Meaning |
+| --- | --- |
+| `encoding.base64_encode(text)` / `base64_decode(text)` | Standard Base64. |
+| `encoding.base64url_encode(text)` / `base64url_decode(text)` | URL-safe Base64. |
+| `encoding.hex_encode(text)` / `hex_decode(text)` | Hex UTF-8 bytes. |
+| `encoding.url_encode(text)` / `url_decode(text)` | `quote_plus`/`unquote_plus`. |
+
+### `hash`
+
+| Function | Meaning |
+| --- | --- |
+| `hash.md5(text)`, `hash.sha1(text)`, `hash.sha256(text)` | Hex digests. |
+| `hash.hmac_sha256(key, text)` | HMAC-SHA256 hex digest. |
+
+### `uuidgen`
+
+Implementation module behind `std/uuid.takg`; import the library for normal use.
+It exposes `v4()`, `v5(namespace, name)`, `nil()`, `valid?(text)` and the
+`NAMESPACE_*` constants.
 
 ### `sys`
 

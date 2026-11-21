@@ -1,0 +1,63 @@
+# A small INI parser/stringifier. Top-level keys live outside sections.
+
+import "std/strings.takg" as S
+
+fn parse(text) {
+  let result = {}
+  var section = ""
+  let lines = text.lines()
+  var i = 0
+  while i < lines.size {
+    let raw = lines[i]
+    let line = raw.strip()
+    if line.size == 0 or line.starts_with("#") or line.starts_with(";") {
+      i += 1
+      continue
+    }
+    if line.starts_with("[") and line.ends_with("]") {
+      section = line.slice(1, line.size - 2).strip()
+      if not result.has_key?(section) { result[section] = {} }
+    } else {
+      let eq = line.index_of("=")
+      if eq != nil {
+        let key = line.slice(0, eq).strip()
+        var value = line.slice(eq + 1, line.size - eq - 1).strip()
+        if value.size >= 2 {
+          if (value.starts_with('"') and value.ends_with('"')) or
+            (value.starts_with("'") and value.ends_with("'")) {
+            value = value.slice(1, value.size - 2)
+          }
+        }
+        if section.size == 0 {
+          result[key] = value
+        } else {
+          result[section][key] = value
+        }
+      }
+    }
+    i += 1
+  }
+  result
+}
+
+fn stringify(data) {
+  let lines = []
+  for key in data.keys() {
+    if not (data[key] is Map) {
+      lines.push("#{key}=#{data[key]}")
+    }
+  }
+  for key in data.keys() {
+    if data[key] is Map {
+      lines.push("")
+      lines.push("[#{key}]")
+      for field in data[key].keys() {
+        lines.push("#{field}=#{data[key][field]}")
+      }
+    }
+  }
+  lines.join("\n")
+}
+
+fn load(path) => parse(fs.read(path))
+fn save(path, data) => fs.write(path, stringify(data))

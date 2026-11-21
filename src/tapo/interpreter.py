@@ -111,9 +111,17 @@ class Interpreter:
     # ------------------------------------------------------------------
     def eval_block(self, block, env):
         value = None
-        for stmt in block.stmts:
-            value = self.eval(stmt, env)
-        return value
+        defers = []
+        try:
+            for stmt in block.stmts:
+                if isinstance(stmt, A.Defer):
+                    defers.append(stmt)
+                else:
+                    value = self.eval(stmt, env)
+            return value
+        finally:
+            for deferred in reversed(defers):
+                self.eval(deferred.body, env)
 
     def eval(self, node, env):
         if isinstance(node, A.Block):
@@ -200,6 +208,8 @@ class Interpreter:
             return self.eval_with(node, env)
         if isinstance(node, A.EnumDecl):
             return self.eval_enum(node, env)
+        if isinstance(node, A.Defer):
+            self.error("ValueError", "defer is only valid inside a block", node)
         if isinstance(node, A.Yield):
             self.error("ValueError", "yield is only valid inside a function", node)
         if isinstance(node, A.If):
@@ -504,9 +514,17 @@ class Interpreter:
         """Evaluate a node with yield support, delegating ordinary nodes."""
         if isinstance(node, A.Block):
             result = None
-            for stmt in node.stmts:
-                result = yield from self.gen_eval(stmt, env, suspend)
-            return result
+            defers = []
+            try:
+                for stmt in node.stmts:
+                    if isinstance(stmt, A.Defer):
+                        defers.append(stmt)
+                    else:
+                        result = yield from self.gen_eval(stmt, env, suspend)
+                return result
+            finally:
+                for deferred in reversed(defers):
+                    yield from self.gen_eval(deferred.body, env, suspend)
         if isinstance(node, A.Yield):
             value = self.eval(node.value, env) if node.value is not None else None
             yield from suspend(value)
@@ -1932,6 +1950,12 @@ class Interpreter:
             return {}
         if isinstance(pattern, A.PVar):
             return {pattern.name: value}
+        if isinstance(pattern, A.PRange):
+            if not self.is_number(value):
+                return None
+            if pattern.inclusive:
+                return {} if pattern.start <= value <= pattern.end else None
+            return {} if pattern.start <= value < pattern.end else None
         if isinstance(pattern, A.PLiteral):
             return {} if self.tapo_equals(pattern.value, value) else None
         if isinstance(pattern, A.PList):

@@ -215,6 +215,13 @@ class Continue:
 
 
 @dataclass
+class Defer:
+    body: Block
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
 class Yield:
     value: Any = None
     line: int = 0
@@ -396,6 +403,15 @@ class PVar:
 @dataclass
 class PLiteral:
     value: Any
+    line: int = 0
+    col: int = 0
+
+
+@dataclass
+class PRange:
+    start: Any
+    end: Any
+    inclusive: bool = True
     line: int = 0
     col: int = 0
 

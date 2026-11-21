@@ -1,0 +1,12 @@
+# Base64, base64url, hex and URL encoding helpers.
+
+import "encoding" as E
+
+fn encode(text) => E.base64_encode(text)
+fn decode(text) => E.base64_decode(text)
+fn url_encode(text) => E.base64url_encode(text)
+fn url_decode(text) => E.base64url_decode(text)
+fn hex_encode(text) => E.hex_encode(text)
+fn hex_decode(text) => E.hex_decode(text)
+fn url_quote(text) => E.url_encode(text)
+fn url_unquote(text) => E.url_decode(text)

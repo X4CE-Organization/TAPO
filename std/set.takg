@@ -1,0 +1,50 @@
+# A list-backed Set with value equality.
+
+class Set {
+  var items = []
+
+  init(items = []) {
+    self.items = []
+    for item in items { self.add(item) }
+  }
+
+  fn add(value) {
+    if not self.contains?(value) { self.items.push(value) }
+    self
+  }
+
+  fn remove(value) {
+    self.items = self.items.filter(fn(item) => not item == value)
+    self
+  }
+
+  fn contains?(value) => self.items.contains(value)
+  fn size() => self.items.size
+  fn empty?() => self.items.empty?()
+  fn to_list() => self.items
+  fn each(f) { for item in self.items { f(item) } }
+  fn map(f) => self.items.map(f)
+  fn filter(f) => Set(self.items.filter(f))
+
+  fn union(other) {
+    let result = Set(self.items)
+    for item in other.to_list() { result.add(item) }
+    result
+  }
+
+  fn intersection(other) {
+    Set(self.items.filter(fn(item) => other.contains?(item)))
+  }
+
+  fn difference(other) {
+    Set(self.items.filter(fn(item) => not other.contains?(item)))
+  }
+
+  fn is_subset?(other) => self.items.all?(fn(item) => other.contains?(item))
+
+  fn to_s() => "Set(#{inspect(self.items)})"
+  fn inspect() => self.to_s()
+}
+
+fn new(items = []) => Set(items)
+fn from_list(items) => Set(items)

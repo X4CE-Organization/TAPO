@@ -1,0 +1,104 @@
+import "std/base64.takg" as B
+import "std/uuid.takg" as U
+import "std/ini.takg" as I
+import "std/set.takg" as S
+import "std/template.takg" as T
+import "encoding" as E
+import "hash" as H
+
+test("defer runs last-in-first-out", fn() {
+  let log = []
+  fn work() {
+    defer { log.push("first") }
+    defer { log.push("second") }
+    log.push("body")
+    42
+  }
+  assert_eq(work(), 42)
+  assert_eq(log, ["body", "second", "first"])
+})
+
+test("defer runs on errors and returns", fn() {
+  var cleaned = false
+  fn fail() {
+    defer { cleaned = true }
+    raise ValueError("boom")
+  }
+  let err = try { fail() } catch caught { caught }
+  assert_eq(err.message, "boom")
+  assert(cleaned)
+
+  var returned = false
+  fn early() {
+    defer { returned = true }
+    return 7
+  }
+  assert_eq(early(), 7)
+  assert(returned)
+})
+
+test("range patterns", fn() {
+  let label = fn(n) {
+    match n {
+      1..5 => "low",
+        6...8 => "high",
+        else => "other"
+    }
+  }
+  assert_eq(label(1), "low")
+  assert_eq(label(5), "low")
+  assert_eq(label(6), "high")
+  assert_eq(label(8), "other")
+  assert_eq(label(0), "other")
+})
+
+test("encoding and hashing", fn() {
+  assert_eq(B.encode("TAPO 你好"), "VEFQTyDkvaDlpb0=")
+  assert_eq(B.decode("VEFQTyDkvaDlpb0="), "TAPO 你好")
+  assert_eq(B.hex_encode("abc"), "616263")
+  assert_eq(B.hex_decode("616263"), "abc")
+  assert_eq(B.url_quote("a b&c"), "a+b%26c")
+  assert_eq(B.url_unquote("a+b%26c"), "a b&c")
+  assert_eq(H.sha256("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+  assert_eq(E.base64_decode(E.base64_encode("round trip")), "round trip")
+})
+
+test("uuid helpers", fn() {
+  let id = U.new()
+  assert(U.valid?(id))
+  assert(U.valid?(U.v5(U.NAMESPACE_DNS, "example.com")))
+  assert_eq(U.v5(U.NAMESPACE_DNS, "example.com"), "cfbff0d1-9375-5685-968c-48ce8b15ae17")
+  assert_eq(U.nil_value(), "00000000-0000-0000-0000-000000000000")
+  assert(not U.valid?("not-a-uuid"))
+})
+
+test("ini round trip", fn() {
+  let text = "[server]\nhost = localhost\nport = 8080\nname = \"demo\"\n"
+  let data = I.parse(text)
+  assert_eq(data["server"]["host"], "localhost")
+  assert_eq(data["server"]["name"], "demo")
+  let again = I.parse(I.stringify(data))
+  assert_eq(again["server"]["port"], "8080")
+})
+
+test("set operations", fn() {
+  let a = S.new([1, 2, 2, 3])
+  let b = S.new([3, 4])
+  assert_eq(a.size(), 3)
+  assert(a.contains?(2))
+  assert(not a.contains?(9))
+  assert_eq(a.union(b).to_list(), [1, 2, 3, 4])
+  assert_eq(a.intersection(b).to_list(), [3])
+  assert_eq(a.difference(b).to_list(), [1, 2])
+  assert(S.new([1]).is_subset?(a))
+  a.add(4)
+  assert(a.contains?(4))
+  a.remove(4)
+  assert(not a.contains?(4))
+})
+
+test("template rendering", fn() {
+  assert_eq(T.render("Hello {{name}}!", {"name": "Ada"}), "Hello Ada!")
+  assert_eq(T.render("{{missing}}", {}), "")
+  assert_eq(T.render_map("{{n}}", [{"n": 1}, {"n": 2}]), ["1", "2"])
+})

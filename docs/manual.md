@@ -1,6 +1,6 @@
 # The TAPO Language Manual
 
-Version 0.0.1 · © 2026 X4CE · MIT
+Version 0.0.2 · © 2026 X4CE · MIT
 
 TAPO is an expression-oriented, dynamically typed, object-oriented language. It is
 implemented as a compact tree-walking interpreter in Python and ships with its
@@ -20,6 +20,7 @@ built-in methods, see [the standard library reference](stdlib.md).
 ./tapo check program.tapo    # parse only
 ./tapo fmt program.tapo      # format in place
 ./tapo fmt --check .         # report files that would change
+./tapo new demo              # scaffold a new project
 ./tapo test                # run tests/
 ```
 
@@ -140,7 +141,7 @@ let {x, y} = {x: 1, y: 2}
 let Point(px, py) = Point(1, 2)
 ```
 
-Pattern declarations are described in §10.
+Pattern declarations are described in §11.
 
 ---
 
@@ -296,6 +297,23 @@ println(numbers.to_list()) # [2]
 Generators work with `for`, and provide `next`, `done?`, `each`, `to_list`,
 `take` and `close`. `close` runs any `finally` blocks in the generator. When a
 generator is exhausted, `next` raises `StopIteration`.
+
+### Defer
+
+`defer { ... }` registers cleanup for the current block. Deferred blocks run in
+reverse registration order when the block exits, including `return`, `break`
+and exceptions:
+
+```tapo
+fn work() {
+  defer { println("second") }
+  defer { println("first") }
+  println("body")
+}
+```
+
+Each block has its own defer stack. A deferred block that raises replaces the
+original exception, as in `finally` blocks.
 
 ---
 
@@ -474,6 +492,7 @@ Patterns:
 - literals: `nil`, `true`, `false`, numbers, strings;
 - `_` matches anything without binding;
 - a bare lower-case name binds;
+- `1..5` / `6...9` match numeric ranges (inclusive / exclusive);
 - `[a, b, ...rest]` matches lists and strings;
 - `{key: pattern, ...rest}` matches maps;
 - `Class(positional..., key: pattern)` matches instances;
@@ -481,7 +500,8 @@ Patterns:
 - `pattern as name` binds the whole value;
 - `else` is the wildcard arm.
 
-Class patterns match by class and then by fields. Positional patterns bind
+Numeric range patterns only accept number literals as bounds for now. Class
+patterns match by class and then by fields. Positional patterns bind
 fields in declaration order, **skipping fields named by keyword patterns**.
 Extra fields are ignored. A subclass instance matches a parent class pattern.
 `Object(...)` matches any object.
@@ -641,6 +661,11 @@ println(C.median([3, 1, 2]))
 | `std/csv.takg` | RFC-style CSV parsing/stringifying and map conversion. |
 | `std/path.takg` | Path splitting, extensions, suffixes and filesystem helpers. |
 | `std/cli.takg` | Small command-line flag/option parser. |
+| `std/base64.takg` | Base64/base64url, hex and URL encoding helpers. |
+| `std/uuid.takg` | UUID v4/v5 generation and validation. |
+| `std/ini.takg` | Small INI parser/stringifier. |
+| `std/set.takg` | List-backed value set with union/intersection/difference. |
+| `std/template.takg` | Minimal `{{name}}` template rendering. |
 
 See [Extra libraries](libraries.md) for the full API.
 
@@ -715,3 +740,5 @@ printed with `inspect`.
 - Map dot access (`m.key`) only reads or writes an existing string key; use
   `m[key] = value` to add a new key.
 - `-x.method()` binds as `-(x.method())`; parenthesise negative receivers.
+- Range patterns require numeric literal bounds.
+- `defer` is block-scoped and runs in LIFO order.

@@ -189,7 +189,7 @@
         },
         {
           "name": "keyword.other.tapo",
-          "match": "\\b(class|mixin|aspect|enum|fn|let|var|import|export|as|with|use|static|get|set|self|super|before|after|around|yield|and|or|not|is)\\b"
+          "match": "\\b(class|mixin|aspect|enum|fn|let|var|import|export|as|with|use|static|get|set|self|super|before|after|around|yield|defer|and|or|not|is)\\b"
         }
       ]
     },

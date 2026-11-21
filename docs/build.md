@@ -81,7 +81,7 @@ such as `-e` work exactly like they do on macOS/Linux.
 The release folder contains:
 
 ```text
-TAPO-0.0.1/
+TAPO-0.0.2/
 ├── macos-arm64/tapo
 ├── linux-x64/tapo
 ├── windows-x64/tapo.exe + runtime files

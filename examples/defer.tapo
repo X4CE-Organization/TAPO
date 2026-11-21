@@ -1,0 +1,28 @@
+# defer runs in LIFO order and still runs on errors and returns.
+
+fn process(name) {
+  defer { println("finished #{name}") }
+  defer { println("closing #{name}") }
+  println("working on #{name}")
+  if name == "bad" { raise ValueError("cannot process bad") }
+  "ok"
+}
+
+println(process("alpha"))
+
+let error = try {
+  process("bad")
+} catch caught {
+  caught
+}
+println("caught: #{error.message}")
+
+fn scoped() {
+  defer { println("outer cleanup") }
+  if true {
+    defer { println("inner cleanup") }
+    println("inner work")
+  }
+  println("outer work")
+}
+scoped()
